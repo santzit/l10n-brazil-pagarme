@@ -19,14 +19,9 @@ Following the OCA l10n-brazil test.yml reference workflow, these validation step
 # TIMING: 40 seconds for full validation - NEVER CANCEL
 pre-commit run --all-files
 
-# STEP 2: MANDATORY GitHub Actions CI validation (MUST PASS)
-# GitHub Actions uses container + services approach (NOT local Docker commands)
-# From test.yml:
-#   container: ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest
-#   services:
-#     postgres:
-#       image: postgres:14.0
-#       env: POSTGRES_USER=odoo, POSTGRES_PASSWORD=odoo, POSTGRES_DB=odoo
+# STEP 2: MANDATORY Local OCA Testing (MUST PASS)
+# Uses Docker Compose approach to mirror GitHub Actions container + services setup
+# TIMING: 10-15 minutes for full OCA validation - NEVER CANCEL
 
 # GitHub Actions runs these separated steps automatically:
 # - Step 1: oca_install_addons
@@ -41,23 +36,134 @@ export EXCLUDE=""
 ```
 
 **COMMIT ENFORCEMENT RULES:**
-- **NO COMMITS** are allowed unless BOTH pre-commit AND GitHub Actions CI pass completely
+- **NO COMMITS** are allowed unless BOTH pre-commit AND local OCA Docker testing pass completely
 - **NO ALTERNATIVE SOLUTIONS** are permitted - both validations are mandatory  
 - **NO EXCEPTIONS** - if any validation fails, the commit MUST NOT proceed
 - **ERROR REPORTING** - if validation fails, report the specific error and stop the process
+- **PostgreSQL CONNECTIVITY** - MUST test database connection using Docker after oca_install_addons
+- **SEPARATED STEPS** - Follow GitHub Actions pattern: install → connection test → init database → run tests
 
 **ENFORCEMENT SEQUENCE:**
 1. Execute `pre-commit run --all-files` - MUST PASS
-2. Push changes to trigger GitHub Actions CI - MUST PASS
-3. Verify GitHub Actions test.yml workflow completes successfully - MUST PASS
-4. Only proceed with commit if BOTH validations pass
-5. If any step fails: STOP, report error in comment, do NOT commit
+2. Execute Docker-based OCA testing sequence (oca_install_addons → PostgreSQL connection test → oca_init_test_database → oca_run_tests) - MUST PASS
+3. Only proceed with commit if BOTH validations pass
+4. If any step fails: STOP, report error in comment, do NOT commit
+5. Optional: Push changes to verify GitHub Actions CI also passes
 
-**IMPORTANT: Local OCA Testing Limitations**
-- GitHub Actions uses `container:` + `services:` approach with proper networking
-- Local replication requires complex Docker Compose setup 
-- **RECOMMENDED**: Rely on GitHub Actions CI for OCA validation
-- **LOCAL TESTING**: Use pre-commit for immediate feedback, GitHub Actions for full validation
+**LOCAL OCA TESTING WITH DOCKER COMPOSE**
+- GitHub Actions uses `container:` + `services:` approach - replicate locally with Docker Compose
+- **MANDATORY**: Use Docker Compose for local OCA testing that mirrors GitHub Actions setup
+- **SEPARATED STEPS**: Follow exact GitHub Actions pattern with individual Docker commands
+- **CONNECTION TESTING**: Always test PostgreSQL connectivity using Docker after `oca_install_addons`
+
+**Docker Compose Setup for Local Testing:**
+```yaml
+# docker-compose-oca-test.yml (create temporarily for testing)
+version: '3.8'
+services:
+  postgres:
+    image: postgres:14.0
+    environment:
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
+      POSTGRES_DB: odoo
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - oca-network
+
+  oca-ci:
+    image: ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/opt/odoo/addons/custom
+    working_dir: /opt/odoo/addons/custom
+    environment:
+      - INCLUDE=l10n_br_payment_pagarme
+      - EXCLUDE=
+      - PGHOST=postgres
+      - PGUSER=odoo
+      - PGPASSWORD=odoo
+      - PGDATABASE=odoo
+    networks:
+      - oca-network
+
+networks:
+  oca-network:
+    driver: bridge
+```
+
+**MANDATORY Local OCA Testing Sequence (Rule 1):**
+```bash
+# Step 1: Create Docker Compose file and start PostgreSQL
+cat > docker-compose-oca-test.yml << 'EOF'
+version: '3.8'
+services:
+  postgres:
+    image: postgres:14.0
+    environment:
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
+      POSTGRES_DB: odoo
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - oca-network
+
+  oca-ci:
+    image: ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/opt/odoo/addons/custom
+    working_dir: /opt/odoo/addons/custom
+    environment:
+      - INCLUDE=l10n_br_payment_pagarme
+      - EXCLUDE=
+      - PGHOST=postgres
+      - PGUSER=odoo
+      - PGPASSWORD=odoo
+      - PGDATABASE=odoo
+    networks:
+      - oca-network
+
+networks:
+  oca-network:
+    driver: bridge
+EOF
+
+# Step 2: Start PostgreSQL service
+docker compose -f docker-compose-oca-test.yml up -d postgres
+
+# Step 3: Install addons using Docker Compose run
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_install_addons"
+
+# Step 4: Test PostgreSQL connectivity using Docker (MANDATORY after oca_install_addons)
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "echo 'Testing PostgreSQL connectivity...' && timeout 30 bash -c 'until pg_isready -h postgres -p 5432 -U odoo; do echo \"Waiting for PostgreSQL...\"; sleep 2; done' && echo 'PostgreSQL connection verified ✅'"
+
+# Step 5: Initialize test database using Docker Compose
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_init_test_database"
+
+# Step 6: Run tests using Docker Compose  
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_run_tests"
+
+# Step 7: Cleanup
+docker compose -f docker-compose-oca-test.yml down
+rm docker-compose-oca-test.yml
+```
 
 ### Rule 2: Zero Tolerance for Formatting Violations
 
@@ -742,24 +848,85 @@ The repository uses GitHub Actions workflows defined in `.github/workflows/`:
 
 #### Local Testing Setup
 
-**IMPORTANT**: GitHub Actions uses `container:` + `services:` approach which is complex to replicate locally. For development workflow:
+**LOCAL DOCKER COMPOSE APPROACH**: Replicate GitHub Actions `container:` + `services:` pattern locally
 
 1. **Use pre-commit for immediate validation**:
 ```bash
-# Quick local validation
+# Quick local validation (MANDATORY first step)
 pre-commit run --all-files
 ```
 
-2. **Use GitHub Actions CI for full OCA validation**:
-   - Push changes to trigger `.github/workflows/test.yml`
-   - Monitor workflow execution with separated steps:
-     - Install addons and dependencies: `oca_install_addons`  
-     - Check licenses: `manifestoo -d . check-licenses`
-     - Check development status: `manifestoo -d . check-dev-status --default-dev-status=Beta`
-     - Initialize test database: `oca_init_test_database`
-     - Run tests: `oca_run_tests`
+2. **Use Docker Compose for full OCA validation locally**:
+```bash
+# Create temporary Docker Compose file with proper networking
+cat > docker-compose-oca-test.yml << 'EOF'
+version: '3.8'
+services:
+  postgres:
+    image: postgres:14.0
+    environment:
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
+      POSTGRES_DB: odoo
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - oca-network
 
-3. **GitHub Actions Environment (from test.yml)**:
+  oca-ci:
+    image: ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/opt/odoo/addons/custom
+    working_dir: /opt/odoo/addons/custom
+    environment:
+      - INCLUDE=l10n_br_payment_pagarme
+      - EXCLUDE=
+      - PGHOST=postgres
+      - PGUSER=odoo
+      - PGPASSWORD=odoo
+      - PGDATABASE=odoo
+    networks:
+      - oca-network
+
+networks:
+  oca-network:
+    driver: bridge
+EOF
+
+# Step 1: Start PostgreSQL service with health check
+docker compose -f docker-compose-oca-test.yml up -d postgres
+
+# Step 2: Install addons with INCLUDE/EXCLUDE using Docker Compose run
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_install_addons"
+
+# Step 3: Test PostgreSQL connectivity using Docker (MANDATORY after oca_install_addons)
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "echo 'Testing PostgreSQL connectivity...' && timeout 30 bash -c 'until pg_isready -h postgres -p 5432 -U odoo; do echo \"Waiting for PostgreSQL...\"; sleep 2; done' && echo 'PostgreSQL connection verified ✅'"
+
+# Step 4: Initialize test database using Docker Compose
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_init_test_database"
+
+# Step 5: Run tests using Docker Compose
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_run_tests"
+
+# Step 6: Cleanup
+docker compose -f docker-compose-oca-test.yml down
+rm docker-compose-oca-test.yml
+```
+
+3. **GitHub Actions CI validation** (automatic on push):
+   - Mirrors the exact same steps with `container:` + `services:` setup
+   - Provides backup validation and CI/CD integration
+   - Uses same INCLUDE/EXCLUDE environment variables
+
+**GitHub Actions Environment (from test.yml)**:
 ```yaml
 runs-on: ubuntu-22.04
 container: ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest
@@ -780,10 +947,10 @@ export INCLUDE="l10n_br_payment_pagarme"
 export EXCLUDE=""
 ```
 
-**RECOMMENDATION**: 
-- **Local development**: Use pre-commit for fast feedback
-- **Full validation**: Rely on GitHub Actions CI (test.yml workflow)
-- **Do not attempt**: Complex local Docker Compose OCA setup
+**LOCAL TESTING REQUIREMENTS**: 
+- **Step 1**: Pre-commit validation (local, fast feedback)
+- **Step 2**: Docker Compose OCA testing (local, full validation)
+- **Step 3**: GitHub Actions CI (automatic, backup validation)
 ```
 
 ### 8. Development Workflow
@@ -898,12 +1065,24 @@ pip install pre-commit && pre-commit install
 # MANDATORY validation after EVERY code change (Rule 1)
 pre-commit run --all-files
 
-# MANDATORY OCA testing (Rule 1) - following OCA l10n-brazil test.yml
-export INCLUDE="l10n_br_payment_pagarme"
-export EXCLUDE=""
-oca_install_addons
-oca_init_test_database  
-oca_run_tests
+# MANDATORY OCA testing (Rule 1) - Docker Compose approach following test.yml pattern
+# Step 1: Start PostgreSQL service
+docker compose -f docker-compose-oca-test.yml up -d postgres
+
+# Step 2: Install addons with INCLUDE/EXCLUDE using Docker Compose run
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_install_addons"
+
+# Step 3: Test PostgreSQL connectivity (MANDATORY after oca_install_addons)
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "timeout 30 bash -c 'until pg_isready -h postgres -p 5432 -U odoo; do echo \"Waiting for PostgreSQL...\"; sleep 2; done'"
+
+# Step 4: Initialize database
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_init_test_database"
+
+# Step 5: Run tests
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_run_tests"
+
+# Step 6: Cleanup
+docker compose -f docker-compose-oca-test.yml down
 
 # Repository exploration
 find l10n_br_payment_pagarme -name "*.py" | head -10    # See Python files
@@ -915,5 +1094,5 @@ grep -r "class.*Model" l10n_br_payment_pagarme/models/  # See model classes
 
 This repository maintains high OCA standards while focusing on Brazilian localization requirements. Always prioritize code quality, comprehensive testing, regulatory compliance, and maintainability when developing new modules or features.
 
-**Remember: Rule 1 requires BOTH pre-commit AND OCA test tools to pass before ANY commit - no exceptions.**
+**Remember: Rule 1 requires BOTH pre-commit AND local Docker-based OCA testing to pass before ANY commit - no exceptions.**
 
