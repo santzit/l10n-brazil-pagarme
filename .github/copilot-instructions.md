@@ -2,7 +2,8 @@
 
 ## 🚨 MANDATORY COPILOT FIREWALL RULES 🚨
 
-**THESE RULES MUST BE FOLLOWED WITHOUT EXCEPTION - NO CODE CHANGES ARE ALLOWED WITHOUT COMPLIANCE**
+**THESE RULES MUST BE FOLLOWED WITHOUT EXCEPTION - NO CODE CHANGES ARE ALLOWED WITHOUT
+COMPLIANCE**
 
 ### Rule 1: Pre-commit Execution is MANDATORY
 
@@ -21,7 +22,8 @@ find . -name "*.py" -exec python -m py_compile {} \;
 
 - **Python**: ONLY double quotes allowed - `"string"` ✅, `'string'` ❌
 - **Line Length**: MAXIMUM 88 characters per line (E501 enforced by ruff)
-- **Imports**: ONLY explicit re-exports in `__init__.py` - `from . import models as models` ✅
+- **Imports**: ONLY explicit re-exports in `__init__.py` -
+  `from . import models as models` ✅
 - **Files**: MUST end with single newline, NO trailing whitespace
 - **XML/JS**: MUST pass prettier formatting validation
 - **Docstrings**: Break long docstrings across multiple lines to stay under 88 chars
@@ -38,7 +40,8 @@ find . -name "*.py" -exec python -m py_compile {} \;       # Syntax validation
 
 ### Rule 4: Emergency Protocols for Network Issues
 
-When pre-commit installation fails due to network issues, execute these commands immediately:
+When pre-commit installation fails due to network issues, execute these commands
+immediately:
 
 ```bash
 # Install tools directly if pre-commit network fails
@@ -58,21 +61,27 @@ find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.par
 
 ## Repository Overview
 
-This is an **ODOO 16.0 OCA (Odoo Community Association) repository** for **Brazilian localization modules**, with a focus on payment providers and Brazilian market requirements.
+This is an **ODOO 16.0 OCA (Odoo Community Association) repository** for **Brazilian
+localization modules**, with a focus on payment providers and Brazilian market
+requirements.
 
 **Key Context:**
 
-- **Purpose**: Brazilian localization modules for Odoo, including payment providers and market-specific features
+- **Purpose**: Brazilian localization modules for Odoo, including payment providers and
+  market-specific features
 - **Odoo Version**: 16.0 (follow version-specific patterns and APIs)
 - **OCA Compliance**: Strict adherence to OCA standards for community modules
-- **Localization Focus**: Brazilian market requirements, regulations, and payment systems
+- **Localization Focus**: Brazilian market requirements, regulations, and payment
+  systems
 - **Module Pattern**: `l10n_br_*` naming convention for Brazilian localization modules
 
-The repository follows OCA standards and best practices for Odoo module development with specific focus on Brazilian market requirements.
+The repository follows OCA standards and best practices for Odoo module development with
+specific focus on Brazilian market requirements.
 
 ## Repository Structure
 
-This repository contains Brazilian localization modules following OCA directory standards:
+This repository contains Brazilian localization modules following OCA directory
+standards:
 
 ```
 l10n_br_module_name/              # Module directory (l10n_br_* pattern)
@@ -97,7 +106,8 @@ l10n_br_module_name/              # Module directory (l10n_br_* pattern)
 - **ALWAYS** follow the OCA module structure pattern
 - **REQUIRED**: Each module must have `__manifest__.py` with proper OCA metadata
 - **REQUIRED**: Include `__init__.py` files in all Python directories
-- Use descriptive names following OCA naming conventions (`l10n_br_*` for Brazilian localization)
+- Use descriptive names following OCA naming conventions (`l10n_br_*` for Brazilian
+  localization)
 
 #### Manifest File Requirements
 
@@ -214,7 +224,8 @@ class TestModuleFunctionality(TransactionCase):
 
 #### Running Tests
 
-The repository uses OCA testing infrastructure as defined in `.github/workflows/test.yml`:
+The repository uses OCA testing infrastructure as defined in
+`.github/workflows/test.yml`:
 
 ```bash
 # Tests are run automatically using OCA CI containers
@@ -281,11 +292,13 @@ class TestUIFunctionality(HttpCase):
         pass
 ```
 
-Follow the testing patterns established in `.github/workflows/test.yml` for consistency with CI/CD pipeline.
+Follow the testing patterns established in `.github/workflows/test.yml` for consistency
+with CI/CD pipeline.
 
 ### 6. Pre-commit Configuration and Error Prevention
 
-The repository includes comprehensive pre-commit hooks for code quality that **MUST** be followed to prevent CI failures:
+The repository includes comprehensive pre-commit hooks for code quality that **MUST** be
+followed to prevent CI failures:
 
 #### Available Hooks
 
@@ -349,7 +362,7 @@ class PaymentProvider(models.Model):
 def test_processing_notification_data_sets_transaction_pending(self):
     """Test that the transaction state is set to 'pending' when the
     notification data indicate a pending payment."""
-    
+
 # ✅ CORRECT - Break long comments
 # The reasons why we immediately tokenize the transaction regardless of
 # the state rather than waiting for the payment method to be validated
@@ -461,7 +474,7 @@ git diff --check
 | Error Type                   | Description                       | Solution                                     |
 | ---------------------------- | --------------------------------- | -------------------------------------------- |
 | **Ruff format**              | Single quotes used                | Change all single quotes to double quotes    |
-| **E501 Line too long**       | Lines exceed 88 characters       | Break long lines, docstrings, and comments  |
+| **E501 Line too long**       | Lines exceed 88 characters        | Break long lines, docstrings, and comments   |
 | **F401 imported but unused** | Import not explicitly re-exported | Use `from . import module as module`         |
 | **end-of-file-fixer**        | Missing newline at end            | Add newline at end of file                   |
 | **trailing-whitespace**      | Spaces at end of lines            | Remove trailing spaces                       |
@@ -501,7 +514,8 @@ npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}"
 
 #### Network Issues and Alternative Validation
 
-If pre-commit encounters network issues during installation, use these alternative validation methods:
+If pre-commit encounters network issues during installation, use these alternative
+validation methods:
 
 ```bash
 # Install core tools directly
@@ -530,7 +544,8 @@ find . -name "*.py" -exec sh -c 'if [ "$(tail -c1 "$1")" != "" ]; then echo "$1"
 
 When updating README.md files, follow OCA standards:
 
-- **Include badges**: Runboat, Pre-commit Status, Build Status, codecov, Translation Status
+- **Include badges**: Runboat, Pre-commit Status, Build Status, codecov, Translation
+  Status
 - **Bilingual content**: Portuguese and English for Brazilian localization
 - **Proper sections**: Features, Installation, Configuration, Development, Contributing
 - **OCA footer**: Include OCA mission statement
@@ -745,7 +760,8 @@ manifestoo -d . check-dev-status --default-dev-status=Beta
 
 - [ ] **FIREWALL RULE 1**: Execute `pre-commit run --all-files` after EVERY code change
 - [ ] **FIREWALL RULE 2**: All Python strings use double quotes (ruff enforced)
-- [ ] **FIREWALL RULE 3**: All `__init__.py` use explicit re-exports (`from . import module as module`)
+- [ ] **FIREWALL RULE 3**: All `__init__.py` use explicit re-exports
+      (`from . import module as module`)
 - [ ] **FIREWALL RULE 4**: All files end with single newline, no trailing whitespace
 - [ ] **FIREWALL RULE 5**: Execute emergency protocols if pre-commit network fails
 
@@ -758,21 +774,26 @@ manifestoo -d . check-dev-status --default-dev-status=Beta
 - [ ] Add tests in `tests/` directory using OCA patterns with **double quotes**
 - [ ] Include security definitions in `security/` if needed
 - [ ] Use translation markers `_()` for user-facing strings with **double quotes**
-- [ ] Use explicit re-exports in all `__init__.py` files (`from . import module as module`)
+- [ ] Use explicit re-exports in all `__init__.py` files
+      (`from . import module as module`)
 - [ ] Ensure all files end with a single newline
 - [ ] Remove all trailing whitespace from files
 - [ ] Follow Brazilian localization requirements
-- [ ] **README.md**: Follow OCA standards with badges, bilingual content, and proper structure
+- [ ] **README.md**: Follow OCA standards with badges, bilingual content, and proper
+      structure
 - [ ] **README.md**: Include Runboat links, installation instructions, and OCA footer
 - [ ] **README.md**: Use auto-generated addons table format with proper comments
 
 #### Final Validation (MANDATORY BEFORE COMMIT)
 
-- [ ] **MANDATORY**: Run pre-commit hooks and ensure ALL checks pass: `pre-commit run --all-files`
+- [ ] **MANDATORY**: Run pre-commit hooks and ensure ALL checks pass:
+      `pre-commit run --all-files`
 - [ ] **MANDATORY**: Fix any ruff formatting errors (especially quote standardization)
 - [ ] **MANDATORY**: Fix any prettier formatting errors for XML/JS files
-- [ ] **MANDATORY**: Validate Python syntax compilation: `find . -name "*.py" -exec python -m py_compile {} \;`
-- [ ] **MANDATORY**: Validate XML syntax: `find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;`
+- [ ] **MANDATORY**: Validate Python syntax compilation:
+      `find . -name "*.py" -exec python -m py_compile {} \;`
+- [ ] **MANDATORY**: Validate XML syntax:
+      `find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;`
 - [ ] Test with OCA infrastructure using `oca_run_tests`
 - [ ] Validate module compliance with manifestoo tools
 
@@ -784,7 +805,9 @@ manifestoo -d . check-dev-status --default-dev-status=Beta
 - **Tools**: Docker (for OCA testing), pre-commit, manifestoo
 - **Brazilian Context**: Understanding of Brazilian market and regulatory requirements
 
-This repository maintains high OCA standards while focusing on Brazilian localization requirements. Always prioritize code quality, comprehensive testing, regulatory compliance, and maintainability when developing new modules or features.
+This repository maintains high OCA standards while focusing on Brazilian localization
+requirements. Always prioritize code quality, comprehensive testing, regulatory
+compliance, and maintainability when developing new modules or features.
 
 ---
 
@@ -802,6 +825,9 @@ npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}"
 find . -name "*.py" -exec python -m py_compile {} \;
 ```
 
-**Failure to execute these firewall rules will result in CI pipeline failures and blocked merges.**
+**Failure to execute these firewall rules will result in CI pipeline failures and
+blocked merges.**
 
-Remember: Pre-commit hooks are your first line of defense against formatting errors and CI failures. The pre-commit environment shown in the successful execution indicates that all necessary tools are properly installed and ready for validation.
+Remember: Pre-commit hooks are your first line of defense against formatting errors and
+CI failures. The pre-commit environment shown in the successful execution indicates that
+all necessary tools are properly installed and ready for validation.
