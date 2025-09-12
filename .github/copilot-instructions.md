@@ -10,7 +10,7 @@ This is an **Odoo 16.0 OCA (Odoo Community Association) module repository** for 
 
 ### Rule 1: MANDATORY Validation Before ANY Commit
 
-**CRITICAL: pre-commit, PostgreSQL connectivity, AND OCA test tools MUST pass before ANY commit**
+**CRITICAL: pre-commit AND GitHub Actions CI MUST pass before ANY commit**
 
 Following the OCA l10n-brazil test.yml reference workflow, these validation steps are MANDATORY:
 
@@ -19,42 +19,45 @@ Following the OCA l10n-brazil test.yml reference workflow, these validation step
 # TIMING: 40 seconds for full validation - NEVER CANCEL
 pre-commit run --all-files
 
-# STEP 2: MANDATORY OCA testing with PostgreSQL (MUST PASS)
-# Following OCA recommendations with INCLUDE/EXCLUDE environment variables
+# STEP 2: MANDATORY GitHub Actions CI validation (MUST PASS)
+# GitHub Actions uses container + services approach (NOT local Docker commands)
+# From test.yml:
+#   container: ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest
+#   services:
+#     postgres:
+#       image: postgres:14.0
+#       env: POSTGRES_USER=odoo, POSTGRES_PASSWORD=odoo, POSTGRES_DB=odoo
+
+# GitHub Actions runs these separated steps automatically:
+# - Step 1: oca_install_addons
+# - Step 2: manifestoo -d . check-licenses  
+# - Step 3: manifestoo -d . check-dev-status --default-dev-status=Beta
+# - Step 4: oca_init_test_database
+# - Step 5: oca_run_tests
+
+# All steps use INCLUDE/EXCLUDE environment variables:
 export INCLUDE="l10n_br_payment_pagarme"
 export EXCLUDE=""
-
-# CRITICAL: Verify PostgreSQL connectivity BEFORE OCA tools (prevents timeouts)
-echo "Verifying PostgreSQL connectivity before OCA testing..."
-timeout 30 bash -c 'until pg_isready -h localhost -p 5432 -U odoo; do echo "Waiting for PostgreSQL..."; sleep 2; done'
-echo "PostgreSQL connection verified ✅"
-
-# Initialize test database
-echo "Initializing test database with OCA tools..."
-export INCLUDE="l10n_br_payment_pagarme"
-export EXCLUDE=""
-oca_init_test_database
-
-# Run OCA test tools (based on OCA l10n-brazil/test.yml)
-oca_install_addons
-manifestoo -d . check-licenses
-manifestoo -d . check-dev-status --default-dev-status=Beta
-oca_init_test_database
-oca_run_tests
 ```
 
 **COMMIT ENFORCEMENT RULES:**
-- **NO COMMITS** are allowed unless ALL THREE validations pass completely
-- **NO ALTERNATIVE SOLUTIONS** are permitted - all three tools are mandatory  
+- **NO COMMITS** are allowed unless BOTH pre-commit AND GitHub Actions CI pass completely
+- **NO ALTERNATIVE SOLUTIONS** are permitted - both validations are mandatory  
 - **NO EXCEPTIONS** - if any validation fails, the commit MUST NOT proceed
 - **ERROR REPORTING** - if validation fails, report the specific error and stop the process
 
 **ENFORCEMENT SEQUENCE:**
 1. Execute `pre-commit run --all-files` - MUST PASS
-2. Verify PostgreSQL connectivity with timeout check - MUST PASS
-3. Execute OCA testing sequence with INCLUDE/EXCLUDE env vars - MUST PASS
-4. Only proceed with commit if ALL steps pass
+2. Push changes to trigger GitHub Actions CI - MUST PASS
+3. Verify GitHub Actions test.yml workflow completes successfully - MUST PASS
+4. Only proceed with commit if BOTH validations pass
 5. If any step fails: STOP, report error in comment, do NOT commit
+
+**IMPORTANT: Local OCA Testing Limitations**
+- GitHub Actions uses `container:` + `services:` approach with proper networking
+- Local replication requires complex Docker Compose setup 
+- **RECOMMENDED**: Rely on GitHub Actions CI for OCA validation
+- **LOCAL TESTING**: Use pre-commit for immediate feedback, GitHub Actions for full validation
 
 ### Rule 2: Zero Tolerance for Formatting Violations
 
@@ -382,25 +385,33 @@ The repository uses OCA testing infrastructure as defined in
 `.github/workflows/test.yml`:
 
 ```bash
-# Tests are run automatically using OCA CI containers
-# Commands from test.yml workflow:
-# Following OCA recommendation with INCLUDE/EXCLUDE environment variables
+# Tests are run automatically using OCA CI containers with GitHub Actions
+# Following test.yml workflow pattern with containers and services:
+# - container: ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest 
+# - services: postgres:14.0 with proper environment variables
+# - Separated steps: install addons → check licenses → init database → run tests
+
+# GitHub Actions approach (from test.yml):
 export INCLUDE="l10n_br_payment_pagarme"
 export EXCLUDE=""
-oca_install_addons       # Install dependencies
-oca_init_test_database   # Initialize test database
-oca_run_tests           # Run all tests
 
-# For local development with Docker:
-docker run --rm --network host -v $(pwd):/opt/odoo/addons/custom \
-  ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest \
-  bash -c "
-    export INCLUDE='l10n_br_payment_pagarme' && export EXCLUDE='' && \
-    echo 'Verifying PostgreSQL connectivity...' && \
-    timeout 30 bash -c 'until pg_isready -h localhost -p 5432 -U odoo; do echo \"Waiting for PostgreSQL...\"; sleep 2; done' && \
-    echo 'PostgreSQL connection verified ✅' && \
-    oca_run_tests
-  "
+# Step 1: Install addons and dependencies
+oca_install_addons
+
+# Step 2: Check licenses  
+manifestoo -d . check-licenses
+
+# Step 3: Check development status
+manifestoo -d . check-dev-status --default-dev-status=Beta
+
+# Step 4: Initialize test database
+oca_init_test_database
+
+# Step 5: Run tests
+oca_run_tests
+
+# For local testing, replicate GitHub Actions environment:
+# IMPORTANT: Use Docker Compose approach like test.yml, NOT direct docker run
 ```
 
 ### 4. Brazilian Market Specifics
@@ -729,24 +740,50 @@ The repository uses GitHub Actions workflows defined in `.github/workflows/`:
 - **Quality checks**: License validation, development status checks
 - **Coverage**: Codecov integration for test coverage reporting
 
-#### Local Testing
+#### Local Testing Setup
 
+**IMPORTANT**: GitHub Actions uses `container:` + `services:` approach which is complex to replicate locally. For development workflow:
+
+1. **Use pre-commit for immediate validation**:
 ```bash
-# Use the same OCA containers as CI
-# Following OCA recommendation with INCLUDE/EXCLUDE environment variables
-docker run --rm --network host -v $(pwd):/opt/odoo/addons/custom \
-  ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest \
-  bash -c "
-    export INCLUDE='l10n_br_payment_pagarme' && export EXCLUDE='' && \
-    echo 'Verifying PostgreSQL connectivity...' && \
-    timeout 30 bash -c 'until pg_isready -h localhost -p 5432 -U odoo; do echo \"Waiting for PostgreSQL...\"; sleep 2; done' && \
-    echo 'PostgreSQL connection verified ✅' && \
-    oca_run_tests
-  "
+# Quick local validation
+pre-commit run --all-files
+```
 
-# Check module compliance (as per test.yml)
-manifestoo -d . check-licenses
-manifestoo -d . check-dev-status --default-dev-status=Beta
+2. **Use GitHub Actions CI for full OCA validation**:
+   - Push changes to trigger `.github/workflows/test.yml`
+   - Monitor workflow execution with separated steps:
+     - Install addons and dependencies: `oca_install_addons`  
+     - Check licenses: `manifestoo -d . check-licenses`
+     - Check development status: `manifestoo -d . check-dev-status --default-dev-status=Beta`
+     - Initialize test database: `oca_init_test_database`
+     - Run tests: `oca_run_tests`
+
+3. **GitHub Actions Environment (from test.yml)**:
+```yaml
+runs-on: ubuntu-22.04
+container: ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest
+services:
+  postgres:
+    image: postgres:14.0
+    env:
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
+      POSTGRES_DB: odoo
+    ports:
+      - 5432:5432
+```
+
+**All OCA steps use INCLUDE/EXCLUDE environment variables**:
+```bash
+export INCLUDE="l10n_br_payment_pagarme"
+export EXCLUDE=""
+```
+
+**RECOMMENDATION**: 
+- **Local development**: Use pre-commit for fast feedback
+- **Full validation**: Rely on GitHub Actions CI (test.yml workflow)
+- **Do not attempt**: Complex local Docker Compose OCA setup
 ```
 
 ### 8. Development Workflow
