@@ -21,6 +21,7 @@ class PaymentProvider(models.Model):
         """
         super()._compute_view_configuration_fields()
         self.filtered(lambda p: p.code == "pagarme").show_credentials_page = False
+        return
 
     def _compute_feature_support_fields(self):
         """Override of `payment` to enable additional features."""
@@ -33,6 +34,7 @@ class PaymentProvider(models.Model):
                 "support_tokenization": True,
             }
         )
+        return
 
     # === CONSTRAINT METHODS ===#
 

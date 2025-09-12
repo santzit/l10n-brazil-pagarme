@@ -71,9 +71,7 @@ class PaymentTransaction(models.Model):
             return
 
         if not self.token_id:
-            raise UserError(
-                "Pagarme: " + _("The transaction is not linked to a token.")
-            )
+            raise UserError(_("Pagarme: The transaction is not linked to a token."))
 
         simulated_state = self.token_id.pagarme_simulated_state
         notification_data = {
@@ -154,8 +152,7 @@ class PaymentTransaction(models.Model):
         )
         if not tx:
             raise ValidationError(
-                "Pagarme: "
-                + _("No transaction found matching reference %s.", reference)
+                _("Pagarme: No transaction found matching reference %s.", reference)
             )
         return tx
 
