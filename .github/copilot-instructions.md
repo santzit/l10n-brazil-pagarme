@@ -8,15 +8,47 @@ This is an **Odoo 16.0 OCA (Odoo Community Association) module repository** for 
 
 **THESE RULES MUST BE FOLLOWED WITHOUT EXCEPTION - NO CODE CHANGES ARE ALLOWED WITHOUT COMPLIANCE**
 
-### Rule 1: Pre-commit Execution is MANDATORY
+### Rule 1: MANDATORY Validation Before ANY Commit
+
+**CRITICAL: BOTH pre-commit AND OCA test tools MUST pass before ANY commit**
+
+Following the OCA l10n-brazil test.yml reference workflow, these validation steps are MANDATORY:
 
 ```bash
-# ABSOLUTE REQUIREMENT: Execute these commands after EVERY code change
+# STEP 1: MANDATORY pre-commit validation (MUST PASS)
 # TIMING: 40 seconds for full validation - NEVER CANCEL
 pre-commit run --all-files
 
-# NO ALTERNATIVE SOLUTIONS - PRE-COMMIT MUST PASS
+# STEP 2: MANDATORY OCA testing with PostgreSQL (MUST PASS)
+# Following OCA recommendations with INCLUDE/EXCLUDE environment variables
+export INCLUDE="l10n_br_payment_pagarme"
+export EXCLUDE=""
+
+# Initialize test database
+echo "Initializing test database with OCA tools..."
+export INCLUDE="l10n_br_payment_pagarme"
+export EXCLUDE=""
+oca_init_test_database
+
+# Run OCA test tools (based on OCA l10n-brazil/test.yml)
+oca_install_addons
+manifestoo -d . check-licenses
+manifestoo -d . check-dev-status --default-dev-status=Beta
+oca_init_test_database
+oca_run_tests
 ```
+
+**COMMIT ENFORCEMENT RULES:**
+- **NO COMMITS** are allowed unless BOTH validations pass completely
+- **NO ALTERNATIVE SOLUTIONS** are permitted - both tools are mandatory  
+- **NO EXCEPTIONS** - if either validation fails, the commit MUST NOT proceed
+- **ERROR REPORTING** - if validation fails, report the specific error and stop the process
+
+**ENFORCEMENT SEQUENCE:**
+1. Execute `pre-commit run --all-files` - MUST PASS
+2. Execute OCA testing sequence - MUST PASS
+3. Only proceed with commit if BOTH pass
+4. If either fails: STOP, report error in comment, do NOT commit
 
 ### Rule 2: Zero Tolerance for Formatting Violations
 
@@ -28,68 +60,7 @@ pre-commit run --all-files
 - **XML/JS**: MUST pass prettier formatting validation
 - **Docstrings**: Break long docstrings across multiple lines to stay under 88 chars
 
-### Rule 3: Validation Before ANY Code Submission
-
-```bash
-# MANDATORY pre-submission checklist execution:
-pre-commit run --all-files                    # Primary validation
-python -m ruff format . && python -m ruff check --fix .    # Python validation
-npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}"  # Format validation
-find . -name "*.py" -exec python -m py_compile {} \;       # Syntax validation
-```
-
-### Rule 4: MANDATORY Testing Requirements Before Commits
-
-**CRITICAL: BOTH pre-commit AND oca_run_tests MUST pass before ANY commit**
-
-```bash
-# STEP 1: MANDATORY pre-commit validation (MUST PASS)
-pre-commit run --all-files
-
-# STEP 2: MANDATORY OCA testing with PostgreSQL (MUST PASS)
-# Following OCA recommendations with INCLUDE/EXCLUDE environment variables
-export INCLUDE="l10n_br_payment_pagarme"
-export EXCLUDE=""
-
-# For local testing, use Docker with PostgreSQL service (like test.yml):
-docker run --rm \
-  --network host \
-  -e POSTGRES_USER=odoo \
-  -e POSTGRES_PASSWORD=odoo \
-  -e POSTGRES_DB=odoo \
-  -e INCLUDE="l10n_br_payment_pagarme" \
-  -e EXCLUDE="" \
-  -v $(pwd):/opt/odoo/addons/custom \
-  ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest \
-  bash -c "
-    # Start PostgreSQL in background
-    service postgresql start &&
-    # Run OCA testing sequence
-    cd /opt/odoo/addons/custom &&
-    oca_install_addons &&
-    oca_init_test_database &&
-    oca_run_tests
-  "
-```
-
-**NO COMMITS ALLOWED WITHOUT BOTH VALIDATIONS PASSING - NO ALTERNATIVE SOLUTIONS**
-
-### Rule 5: STRICT COMMIT ENFORCEMENT  
-
-**ABSOLUTE REQUIREMENT: BOTH pre-commit AND oca_run_tests MUST PASS before ANY commit**
-
-- **NO COMMITS** are allowed unless BOTH validations pass completely
-- **NO ALTERNATIVE SOLUTIONS** are permitted - both tools are mandatory  
-- **NO EXCEPTIONS** - if either validation fails, the commit MUST NOT proceed
-- **ERROR REPORTING** - if validation fails, report the specific error and stop the process
-
-**ENFORCEMENT SEQUENCE:**
-1. Execute `pre-commit run --all-files` - MUST PASS
-2. Execute OCA testing with PostgreSQL - MUST PASS
-3. Only proceed with commit if BOTH pass
-4. If either fails: STOP, report error, do NOT commit
-
-### Rule 6: File Modification Restrictions
+### Rule 3: File Modification Restrictions
 
 **CRITICAL: Root and GitHub directory protection rules - NO EXCEPTIONS**
 
@@ -103,163 +74,9 @@ docker run --rm \
 - **EXCEPTION**: The `.github/copilot-instructions.md` file can be modified when
   updating documentation
 
-### Rule 7: MANDATORY Pre-Commit Validation
-
-**CRITICAL: NO CODE CHANGES WITHOUT PRE-COMMIT VALIDATION**
-
-```bash
-# MANDATORY: Pre-commit must pass before ANY code changes are committed
-pre-commit run --all-files
-
-# MANDATORY: OCA testing must pass before ANY code changes are committed  
-# Following OCA recommendations with INCLUDE/EXCLUDE environment variables
-export INCLUDE="l10n_br_payment_pagarme"
-export EXCLUDE=""
-
-# Use Docker with PostgreSQL service (following test.yml configuration):
-docker run --rm -d --name postgres-test \
-  -e POSTGRES_USER=odoo \
-  -e POSTGRES_PASSWORD=odoo \
-  -e POSTGRES_DB=odoo \
-  -p 5432:5432 \
-  postgres:14.0
-
-# Wait for PostgreSQL to be ready
-sleep 10
-
-# Run OCA testing with proper PostgreSQL connection
-docker run --rm \
-  --network host \
-  -e INCLUDE="l10n_br_payment_pagarme" \
-  -e EXCLUDE="" \
-  -v $(pwd):/opt/odoo/addons/custom \
-  ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest \
-  bash -c "
-    cd /opt/odoo/addons/custom &&
-    oca_install_addons &&
-    manifestoo -d . check-licenses &&
-    manifestoo -d . check-dev-status --default-dev-status=Beta &&
-    oca_init_test_database &&
-    oca_run_tests
-  "
-
-# Clean up
-docker stop postgres-test
-
-# NOTE: Pre-commit and OCA Tools
-# OCA Docker images do NOT include pre-commit tools (oca_run_precommit does not exist)
-# Pre-commit validation must be run separately using the standard pre-commit toolchain:
-#   pip install pre-commit && pre-commit install && pre-commit run --all-files
-# OCA tools focus on addon testing, dependency management, and database operations
-# For comprehensive validation, use both OCA tools AND pre-commit hooks
-
-# CRITICAL: XML view validation to prevent test failures
-find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: XML syntax OK')" \;
-
-# CRITICAL: Data XML validation to prevent record reference errors
-python -c "
-import os
-import xml.etree.ElementTree as ET
-
-def validate_data_xml_references():
-    '''Validate XML data files for proper record references and external IDs'''
-    for root, dirs, files in os.walk('.'):
-        if 'data' in dirs:
-            data_path = os.path.join(root, 'data')
-            xml_files = [f for f in os.listdir(data_path) if f.endswith('.xml')]
-            for xml_file in xml_files:
-                xml_path = os.path.join(data_path, xml_file)
-                try:
-                    tree = ET.parse(xml_path)
-                    root_elem = tree.getroot()
-
-                    # Check for records with problematic external IDs
-                    for record in root_elem.findall('.//record'):
-                        record_id = record.get('id', '')
-
-                        # Check for cross-module references without proper prefixing
-                        if '.' in record_id and not record_id.startswith('l10n_br_payment_pagarme.'):
-                            print(f'WARNING: {xml_file} - Record id=\"{record_id}\" may reference external module incorrectly')
-
-                        # Check field references (ref attributes)
-                        for field in record.findall('field[@ref]'):
-                            ref_value = field.get('ref', '')
-                            field_name = field.get('name', '')
-
-                            # Check if referencing views that should be module-prefixed
-                            if ref_value in ['inline_form', 'token_inline_form'] and not ref_value.startswith('l10n_br_payment_pagarme.'):
-                                print(f'ERROR: {xml_file} - Field {field_name} references \"{ref_value}\" without module prefix. Should be \"l10n_br_payment_pagarme.{ref_value}\"')
-                                return False
-
-                            # Check for other unqualified references that might be internal
-                            if '.' not in ref_value and ref_value not in ['True', 'False'] and not ref_value.isdigit():
-                                print(f'WARNING: {xml_file} - Field {field_name} references \"{ref_value}\" - ensure this external ID exists or is properly qualified')
-
-                    print(f'{xml_file}: Data XML validation OK')
-                except ET.ParseError as e:
-                    print(f'ERROR: {xml_file} - XML parsing failed: {e}')
-                    return False
-                except Exception as e:
-                    print(f'ERROR: {xml_file} - Validation failed: {e}')
-                    return False
-    return True
-
-# Run validation
-if not validate_data_xml_references():
-    print('Data XML validation FAILED - fix errors before committing')
-    exit(1)
-else:
-    print('All data XML files validated successfully')
-"
-
-# IMPORTANT: Basic module structure validation
-python -c "
-import os
-for root, dirs, files in os.walk('l10n_br_payment_pagarme'):
-    if 'views' in dirs:
-        views_path = os.path.join(root, 'views')
-        xml_files = [f for f in os.listdir(views_path) if f.endswith('.xml')]
-        if xml_files:
-            print(f'Found XML views: {xml_files}')
-            # Basic check that view files don't have broken inheritance
-            for xml_file in xml_files:
-                xml_path = os.path.join(views_path, xml_file)
-                with open(xml_path, 'r') as f:
-                    content = f.read()
-                    if 'inherit_id=' in content and 'xpath' in content:
-                        print(f'WARNING: {xml_file} contains view inheritance - ensure xpath targets exist in parent view')
-"
-```
-
 ---
 
 ## Working Effectively
-
-### OCA Environment Variables for Module Selection
-
-**CRITICAL: Use INCLUDE/EXCLUDE environment variables with OCA tools as per OCA recommendations**
-
-```bash
-# OCA Standard Practice - Module Selection Environment Variables
-export INCLUDE="l10n_br_payment_pagarme"  # Target specific module for testing/installation
-export EXCLUDE=""                         # Exclude specific modules (empty for single-module repo)
-
-# These variables are used by:
-# - oca_install_addons    (install only specified modules and dependencies)
-# - oca_init_test_database (initialize DB for specified modules)  
-# - oca_run_tests         (run tests only for specified modules)
-
-# Benefits:
-# 1. Faster CI execution - installs/tests only target module
-# 2. Cleaner test isolation - avoids unnecessary module interactions
-# 3. OCA compliance - follows official OCA testing recommendations
-# 4. Resource efficiency - reduces memory and CPU usage in CI
-
-# Usage Pattern:
-export INCLUDE="l10n_br_payment_pagarme"
-export EXCLUDE=""
-oca_install_addons && oca_init_test_database && oca_run_tests
-```
 
 ### Quick Setup Commands - Execute These on Fresh Clone
 
@@ -273,68 +90,21 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-### Build and Test Commands - VALIDATED WORKING
+### OCA Environment Variables for Module Selection
+
+Following OCA l10n-brazil test.yml reference, use INCLUDE/EXCLUDE environment variables:
 
 ```bash
-# Python validation (immediate - under 1 second)
-find . -name "*.py" -exec python -m py_compile {} \;
+# OCA Standard Practice - Module Selection Environment Variables
+export INCLUDE="l10n_br_payment_pagarme"  # Target specific module for testing/installation
+export EXCLUDE=""                         # Exclude specific modules (empty for single-module repo)
 
-# XML validation (immediate - under 1 second)  
-find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: XML syntax OK')" \;
-
-# Code formatting (immediate - under 1 second each)
-python -m ruff format .                            # Fix Python formatting
-python -m ruff check --fix .                      # Fix Python linting
-npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}" --ignore-unknown  # Fix XML/JS
-
-# OCA addon installation using Docker (5+ minutes - NEVER CANCEL)
-# Set timeout to 10+ minutes in automation
-# Following OCA recommendation with INCLUDE/EXCLUDE environment variables
-docker run --rm -v $(pwd):/opt/odoo/addons/custom ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest bash -c "cd /opt/odoo/addons/custom && export INCLUDE='l10n_br_payment_pagarme' && export EXCLUDE='' && oca_install_addons"
-
-# Module validation with manifestoo (immediate)
-pip install manifestoo                            # 3 seconds - one time setup
-manifestoo -d . list                             # Lists: l10n_br_payment_pagarme
-```
-
-### Testing Requirements
-
-**CRITICAL: OCA testing requires PostgreSQL database**
-
-```bash
-# Local OCA testing approach (REQUIRES POSTGRESQL DATABASE):
-# The following commands require PostgreSQL running as configured in test.yml
-
-# Start PostgreSQL service (following test.yml configuration)
-docker run --rm -d --name postgres-test \
-  -e POSTGRES_USER=odoo \
-  -e POSTGRES_PASSWORD=odoo \
-  -e POSTGRES_DB=odoo \
-  -p 5432:5432 \
-  postgres:14.0
-
-# Wait for PostgreSQL to be ready
-sleep 10
-
-# Run OCA testing with proper environment variables (OCA recommendation)
+# Usage Pattern (following OCA l10n-brazil/test.yml):
 export INCLUDE="l10n_br_payment_pagarme"
 export EXCLUDE=""
-
-docker run --rm \
-  --network host \
-  -e INCLUDE="l10n_br_payment_pagarme" \
-  -e EXCLUDE="" \
-  -v $(pwd):/opt/odoo/addons/custom \
-  ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest \
-  bash -c "
-    cd /opt/odoo/addons/custom &&
-    oca_install_addons &&
-    oca_init_test_database &&
-    oca_run_tests
-  "
-
-# Clean up PostgreSQL
-docker stop postgres-test
+oca_install_addons
+oca_init_test_database
+oca_run_tests
 ```
 
 ## Repository Overview
@@ -347,50 +117,6 @@ docker stop postgres-test
 - **Location**: All development happens in `l10n_br_payment_pagarme/` directory
 
 ## Validation and Testing Scenarios
-
-### Manual Validation Requirements
-
-**CRITICAL: After making code changes, ALWAYS run through these validation scenarios:**
-
-#### Scenario 1: Code Quality Validation (REQUIRED AFTER EVERY CHANGE)
-```bash
-# STEP 1: Full pre-commit validation (40 seconds - NEVER CANCEL)
-# Set timeout to 90+ seconds to account for network variations
-pre-commit run --all-files
-
-# STEP 2: Python syntax compilation validation (under 1 second)
-find . -name "*.py" -exec python -m py_compile {} \;
-
-# STEP 3: XML syntax validation (under 1 second)
-find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: XML syntax OK')" \;
-
-# SUCCESS CRITERIA: All commands exit with code 0, no error messages
-```
-
-#### Scenario 2: Module Structure Validation
-```bash  
-# Verify module manifest integrity
-python -c "
-import ast
-with open('l10n_br_payment_pagarme/__manifest__.py', 'r') as f:
-    manifest = ast.literal_eval(f.read())
-    print(f'Module: {manifest[\"name\"]}')
-    print(f'Version: {manifest[\"version\"]}')  
-    print(f'Dependencies: {manifest[\"depends\"]}')
-    print('✅ Manifest structure valid')
-"
-
-# Verify module imports work
-python -c "
-import sys
-sys.path.insert(0, '.')
-try:
-    from l10n_br_payment_pagarme import models, controllers
-    print('✅ Module imports successful')
-except Exception as e:
-    print(f'❌ Import error: {e}')
-"
-```
 
 ## Build and Test Timing Expectations
 
@@ -1103,185 +829,25 @@ _logger.warning("Warning message")
 _logger.error("Error message: %s", error_details)
 ```
 
-## Quick Reference
-
-### 🚨 FIREWALL RULES - EXECUTE AFTER EVERY CODE CHANGE 🚨
-
-```bash
-# PRIMARY FIREWALL COMMAND (execute after every code change)
-pre-commit run --all-files
-
-# EMERGENCY FIREWALL (if pre-commit fails due to network issues)
-python -m ruff format . && python -m ruff check --fix .
-npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}"
-find . -name "*.py" -exec python -m py_compile {} \;
-find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;
-
-# VALIDATION FIREWALL (before any commit/push)
-git diff --check && echo "✅ FIREWALL PASSED - Safe to proceed"
-```
-
-### Setup and Development
-
-```bash
-# Clone and setup repository
-git clone https://github.com/santzit/l10n-brazil-pagarme.git
-cd l10n-brazil-pagarme
-
-# MANDATORY: Install development tools and setup pre-commit
-pip install pre-commit
-pre-commit install
-
-# MANDATORY: Quality checks (following .pre-commit-config.yaml)
-# Run this before every commit to prevent CI failures
-pre-commit run --all-files
-
-# Auto-fix common formatting issues
-python -m ruff format .                    # Fix Python formatting (double quotes, etc.)
-python -m ruff check --fix .             # Fix Python linting issues
-npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}"  # Fix XML/JS formatting
-
-# Testing (following .github/workflows/test.yml patterns)
-# Following OCA recommendation with INCLUDE/EXCLUDE environment variables
-export INCLUDE="l10n_br_payment_pagarme"
-export EXCLUDE=""
-oca_install_addons
-oca_init_test_database
-oca_run_tests
-
-# Module validation
-manifestoo -d . check-licenses
-manifestoo -d . check-dev-status --default-dev-status=Beta
-```
-
-### Development Checklist
-
-#### 🚨 FIREWALL VALIDATION CHECKLIST (MANDATORY) 🚨
-
-- [ ] **FIREWALL RULE 1**: Execute `pre-commit run --all-files` after EVERY code change
-- [ ] **FIREWALL RULE 2**: All Python strings use double quotes (ruff enforced)
-- [ ] **FIREWALL RULE 3**: All `__init__.py` use explicit re-exports
-      (`from . import module as module`)
-- [ ] **FIREWALL RULE 4**: All files end with single newline, no trailing whitespace
-- [ ] **FIREWALL RULE 5**: Execute emergency protocols if pre-commit network fails
-
-#### Standard Development Requirements
-
-- [ ] Follow `l10n_br_*` naming convention for Brazilian modules
-- [ ] Implement proper `__manifest__.py` with OCA metadata using **double quotes**
-- [ ] Add models in `models/` directory with proper inheritance using **double quotes**
-- [ ] Create views in `views/` directory with properly formatted XML structure
-- [ ] Add tests in `tests/` directory using OCA patterns with **double quotes**
-- [ ] Include security definitions in `security/` if needed
-- [ ] Use translation markers `_()` for user-facing strings with **double quotes**
-- [ ] Use explicit re-exports in all `__init__.py` files
-      (`from . import module as module`)
-- [ ] Ensure all files end with a single newline
-- [ ] Remove all trailing whitespace from files
-- [ ] Follow Brazilian localization requirements
-- [ ] **README.md**: Follow OCA standards with badges, bilingual content, and proper
-      structure
-- [ ] **README.md**: Include Runboat links, installation instructions, and OCA footer
-- [ ] **README.md**: Use auto-generated addons table format with proper comments
-
-#### Final Validation (MANDATORY BEFORE COMMIT)
-
-- [ ] **MANDATORY**: Run tests following `.github/workflows/test.yml` patterns BEFORE
-      any commits
-- [ ] **MANDATORY**: Run pre-commit hooks and ensure ALL checks pass:
-      `pre-commit run --all-files`
-- [ ] **MANDATORY**: Fix any ruff formatting errors (especially quote standardization)
-- [ ] **MANDATORY**: Fix any prettier formatting errors for XML/JS files
-- [ ] **MANDATORY**: Validate Python syntax compilation:
-      `find . -name "*.py" -exec python -m py_compile {} \;`
-- [ ] **MANDATORY**: Validate XML syntax:
-      `find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;`
-- [ ] **MANDATORY**: Validate data XML files for proper external ID references (critical
-      for preventing test failures): - Run the enhanced data XML validation script from
-      Rule 6 - Ensure all `ref` attributes in data files use proper module prefixing
-      (e.g., `l10n_br_payment_pagarme.view_id`) - Check that cross-module record IDs
-      don't incorrectly reference external modules - Verify that all referenced external
-      IDs actually exist in the referenced modules
-- [ ] **MANDATORY**: Check XML view inheritance validity (critical for preventing test
-      failures): - Ensure all xpath expressions in inherited views target elements that
-      exist in parent views - Use `xpath expr="."` for adding content inside parent
-      elements when specific hooks don't exist - Avoid targeting non-existent named
-      elements like `[@name='non_existent_hook']`
-- [ ] Test with OCA infrastructure using `oca_run_tests`
-- [ ] Validate module compliance with manifestoo tools
-
-### Environment Requirements
-
-- **Python**: 3.9 (as per GitHub Actions configuration)
-- **Odoo**: 16.0 compatibility required
-- **Database**: PostgreSQL 14.0+ for testing
-- **Tools**: Docker (for OCA testing), pre-commit, manifestoo
-- **Brazilian Context**: Understanding of Brazilian market and regulatory requirements
-
-### Practical Development Checklist
-
-#### 🚨 BEFORE Making Any Code Changes
-- [ ] Fresh clone setup: `pip install pre-commit && pre-commit install`
-- [ ] Baseline validation: `pre-commit run --all-files` (40s - NEVER CANCEL)
-- [ ] Environment check: `python -c "import odoo"` (should fail gracefully - no odoo installed locally)
-
-#### 🚨 AFTER Making Code Changes (MANDATORY)
-- [ ] **MANDATORY**: Full validation: `pre-commit run --all-files` (wait 40+ seconds)
-- [ ] **MANDATORY**: Python syntax: `find . -name "*.py" -exec python -m py_compile {} \;`
-- [ ] **MANDATORY**: XML syntax: `find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;`
-- [ ] Module import test: Test that your changes don't break basic imports
-
-#### 🚨 BEFORE Committing (CRITICAL)
-- [ ] **MANDATORY**: Clean pre-commit run: `pre-commit run --all-files` passes
-- [ ] Git status check: `git status` shows only intended changes
-- [ ] Test description: Can describe what the change does and why
-
-#### Module-Specific Validation
-- [ ] **Payment provider changes**: Test provider configuration UI scenarios  
-- [ ] **Transaction changes**: Test payment flow scenarios (direct + tokenization)
-- [ ] **View changes**: Validate XML structure and inheritance
-- [ ] **Test changes**: Ensure tests follow `PaymentPagarmeCommon` pattern
-
-### Common Issues and Solutions
-```bash
-# Issue: "Permission denied: test-constraints.txt" in pre-commit
-# Cause: File created by Docker with root permissions
-# Solution: Fix file permissions
-sudo chmod 644 test-constraints.txt
-
-# Issue: PostgreSQL connection issues in Docker
-# Cause: PostgreSQL service not started or port conflicts
-# Solution: Ensure PostgreSQL container is running and ports are available
-docker ps | grep postgres
-
-# Issue: OCA tools fail with "No addon selected"
-# Cause: Wrong working directory or missing ADDON_DIRS
-# Solution: Run from repository root with proper environment variables
-export INCLUDE="l10n_br_payment_pagarme"
-export EXCLUDE=""
-```
-# Solution: Use emergency protocols above
-
-# Issue: "No addon selected" in OCA tools
-# Cause: Wrong working directory or missing ADDON_DIRS
-# Solution: Run from repository root with ADDON_DIRS='.'
-```
-
 ---
 
 ## Quick Reference Commands
+
+Following the consolidation in Rule 1, these are the essential commands:
 
 ```bash
 # Fresh repository setup (execute once)
 pip install pre-commit && pre-commit install
 
-# After EVERY code change (MANDATORY - 40 seconds)
+# MANDATORY validation after EVERY code change (Rule 1)
 pre-commit run --all-files
 
-# Emergency validation (network issues)
-python -m ruff format . && python -m ruff check --fix .
-npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}" --ignore-unknown
-find . -name "*.py" -exec python -m py_compile {} \;
+# MANDATORY OCA testing (Rule 1) - following OCA l10n-brazil test.yml
+export INCLUDE="l10n_br_payment_pagarme"
+export EXCLUDE=""
+oca_install_addons
+oca_init_test_database  
+oca_run_tests
 
 # Repository exploration
 find l10n_br_payment_pagarme -name "*.py" | head -10    # See Python files
@@ -1293,5 +859,5 @@ grep -r "class.*Model" l10n_br_payment_pagarme/models/  # See model classes
 
 This repository maintains high OCA standards while focusing on Brazilian localization requirements. Always prioritize code quality, comprehensive testing, regulatory compliance, and maintainability when developing new modules or features.
 
-**Remember: Pre-commit hooks are your first line of defense against formatting errors and CI failures. NEVER CANCEL long-running validation commands.**
+**Remember: Rule 1 requires BOTH pre-commit AND OCA test tools to pass before ANY commit - no exceptions.**
 
