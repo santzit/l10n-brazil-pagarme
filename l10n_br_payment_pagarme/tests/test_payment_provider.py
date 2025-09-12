@@ -45,7 +45,7 @@ class TestPaymentProvider(PaymentPagarmeCommon):
             "Please configure the PagarMe secret key first", str(cm.exception)
         )
 
-    @patch("l10n_br_payment_pagarme.models.payment_provider.requests.get")
+    @patch("odoo.addons.l10n_br_payment_pagarme.models.payment_provider.requests.get")
     def test_connection_test_success(self, mock_get):
         """Test successful connection test."""
         # Mock successful API response
@@ -61,7 +61,7 @@ class TestPaymentProvider(PaymentPagarmeCommon):
         self.assertEqual(result["tag"], "display_notification")
         self.assertIn("Successfully connected", result["params"]["message"])
 
-    @patch("l10n_br_payment_pagarme.models.payment_provider.requests.get")
+    @patch("odoo.addons.l10n_br_payment_pagarme.models.payment_provider.requests.get")
     def test_connection_test_failure(self, mock_get):
         """Test failed connection test."""
         # Mock failed API response
@@ -76,7 +76,7 @@ class TestPaymentProvider(PaymentPagarmeCommon):
             self.provider.action_test_pagarme_connection()
         self.assertIn("Connection failed with status 401", str(cm.exception))
 
-    @patch("l10n_br_payment_pagarme.models.payment_provider.requests.get")
+    @patch("odoo.addons.l10n_br_payment_pagarme.models.payment_provider.requests.get")
     def test_connection_test_timeout(self, mock_get):
         """Test connection test timeout handling."""
         # Mock timeout exception
@@ -90,7 +90,7 @@ class TestPaymentProvider(PaymentPagarmeCommon):
             self.provider.action_test_pagarme_connection()
         self.assertIn("Connection timeout", str(cm.exception))
 
-    @patch("l10n_br_payment_pagarme.models.payment_provider.requests.get")
+    @patch("odoo.addons.l10n_br_payment_pagarme.models.payment_provider.requests.get")
     def test_connection_test_request_exception(self, mock_get):
         """Test connection test request exception handling."""
         # Mock request exception
