@@ -44,28 +44,49 @@ l10n_br_module_name/              # Module directory (l10n_br_* pattern)
 #### Manifest File Requirements
 ```python
 {
-    'name': 'Descriptive Module Name',
-    'version': '16.0.x.y.z',  # Follow OCA versioning
-    'category': 'Appropriate Category',
-    'summary': "Brief module description",
-    'depends': ['base', 'required_modules'],  # Core dependencies
-    'data': [
-        'security/security.xml',  # If access control needed
-        'views/view_files.xml',
-        'data/data_files.xml',
+    "name": "Descriptive Module Name",
+    "version": "16.0.x.y.z",  # Follow OCA versioning
+    "category": "Appropriate Category", 
+    "summary": "Brief module description",
+    "depends": ["base", "required_modules"],  # Core dependencies
+    "data": [
+        "security/security.xml",  # If access control needed
+        "views/view_files.xml",
+        "data/data_files.xml",
     ],
-    'license': 'LGPL-3',  # OCA standard license
-    'installable': True,
-    'auto_install': False,
+    "license": "LGPL-3",  # OCA standard license
+    "installable": True,
+    "auto_install": False,
 }
 ```
 
 ### 2. Python Development Standards
 
-#### Code Style
+#### Code Style and Formatting Requirements
 - Follow **PEP 8** and **OCA Python guidelines**
+- **MANDATORY**: Use **double quotes** for all strings (enforced by ruff)
+- **MANDATORY**: Use explicit re-exports in `__init__.py` files to avoid F401 errors
+- **MANDATORY**: Ensure all files end with a newline
 - Use the configured **pre-commit hooks** (setup in `.pre-commit-config.yaml`)
-- Run `pre-commit run --all-files` before committing
+- **ALWAYS** run `pre-commit run --all-files` before committing
+
+#### Critical Formatting Rules
+```python
+# ✅ CORRECT - Double quotes (REQUIRED)
+from odoo import _, api, fields, models
+from odoo.exceptions import UserError, ValidationError
+
+# ✅ CORRECT - Explicit re-exports in __init__.py
+from . import models as models
+from . import controllers as controllers
+
+# ❌ WRONG - Single quotes will fail pre-commit
+from odoo.exceptions import UserError, ValidationError
+
+# ❌ WRONG - Missing explicit re-export causes F401 errors
+from . import models
+from . import controllers
+```
 
 #### Model Development Patterns
 ```python
@@ -73,25 +94,25 @@ from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 class ModelName(models.Model):
-    _inherit = 'existing.model'  # For extending existing models
+    _inherit = "existing.model"  # For extending existing models (double quotes!)
     # OR
-    _name = 'new.model.name'     # For new models
+    _name = "new.model.name"     # For new models (double quotes!)
     
-    # Field definitions with proper types and attributes
+    # Field definitions with proper types and attributes (double quotes!)
     field_name = fields.Char("Field Label", required=True)
     
     # Methods with proper decorators and documentation
-    @api.depends('field_name')
+    @api.depends("field_name")  # Double quotes!
     def _compute_something(self):
         """Compute method documentation."""
         for record in self:
             record.computed_field = self._calculate_value()
     
-    @api.constrains('field_name')
+    @api.constrains("field_name")  # Double quotes!
     def _check_field_name(self):
         """Validation method documentation."""
         if self.filtered(lambda r: not r.field_name):
-            raise ValidationError(_("Field is required"))
+            raise ValidationError(_("Field is required"))  # Double quotes!
 ```
 
 #### Brazilian Localization Patterns
@@ -113,7 +134,7 @@ class ModelName(models.Model):
 from odoo.tests import tagged, TransactionCase
 from odoo.tests.common import HttpCase
 
-@tagged('-at_install', 'post_install')  # Standard OCA test tagging
+@tagged("-at_install", "post_install")  # Standard OCA test tagging
 class TestModuleFunctionality(TransactionCase):
     
     def setUp(self):
@@ -167,11 +188,11 @@ from odoo.http import request
 
 class BrazilianController(http.Controller):
     
-    @http.route('/brazilian/endpoint', type='json', auth='public', csrf=False)
+    @http.route("/brazilian/endpoint", type="json", auth="public", csrf=False)
     def endpoint_handler(self, **kwargs):
         """Handle Brazilian-specific requests."""
         # Implementation with proper error handling
-        return {'status': 'success'}
+        return {"status": "success"}
 ```
 
 #### Playwright Testing Integration
@@ -180,7 +201,7 @@ For browser automation testing, integrate with Odoo's testing framework:
 ```python
 from odoo.tests import HttpCase, tagged
 
-@tagged('post_install', '-at_install')
+@tagged("post_install", "-at_install")
 class TestUIFunctionality(HttpCase):
     
     def test_user_interface(self):
@@ -192,9 +213,9 @@ class TestUIFunctionality(HttpCase):
 
 Follow the testing patterns established in `.github/workflows/test.yml` for consistency with CI/CD pipeline.
 
-### 6. Pre-commit Configuration
+### 6. Pre-commit Configuration and Error Prevention
 
-The repository includes comprehensive pre-commit hooks for code quality:
+The repository includes comprehensive pre-commit hooks for code quality that **MUST** be followed to prevent CI failures:
 
 #### Available Hooks
 - **OCA-specific**: Module validation, manifest checks, README generation
@@ -202,12 +223,166 @@ The repository includes comprehensive pre-commit hooks for code quality:
 - **Code quality**: PyLint with Odoo extensions
 - **General checks**: Encoding, merge conflicts, trailing whitespace
 
-#### Usage
+#### Critical Pre-commit Error Prevention Guidelines
+
+##### Python Code Formatting (Ruff)
+**ALWAYS use double quotes** - Ruff enforces double quote usage:
+```python
+# ✅ CORRECT - Use double quotes
+setup_provider(cr, registry, "pagarme")
+field_name = fields.Char("Field Label", required=True)
+
+# ❌ WRONG - Single quotes will cause pre-commit failures
+setup_provider(cr, registry, 'pagarme') 
+field_name = fields.Char('Field Label', required=True)
+```
+
+**Import Best Practices** - Avoid F401 "imported but unused" errors:
+```python
+# ✅ CORRECT - Explicit re-exports in __init__.py files
+from . import controllers as controllers
+from . import models as models
+
+# ❌ WRONG - Will cause F401 errors
+from . import controllers
+from . import models
+```
+
+**Method and Class Formatting**:
+```python
+# ✅ CORRECT - Proper spacing and formatting
+class PaymentProvider(models.Model):
+    _inherit = "payment.provider"
+    
+    def _compute_something(self):
+        """Compute method documentation."""
+        for record in self:
+            record.field = self._calculate_value()
+
+# ❌ WRONG - Inconsistent spacing
+class PaymentProvider(models.Model):
+    _inherit='payment.provider'
+    def _compute_something(self):
+        for record in self:
+            record.field=self._calculate_value()
+```
+
+##### XML Formatting (Prettier)
+**Consistent indentation and formatting**:
+```xml
+<!-- ✅ CORRECT - Proper XML formatting -->
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <template id="payment_form" name="Payment Form">
+        <div class="payment-form">
+            <input
+                type="text"
+                name="card_number"
+                placeholder="Card Number"
+                required="required"
+            />
+        </div>
+    </template>
+</odoo>
+
+<!-- ❌ WRONG - Poor formatting will be auto-fixed by prettier -->
+<odoo><template id="payment_form" name="Payment Form"><div class="payment-form"><input type="text" name="card_number" placeholder="Card Number" required="required"/></div></template></odoo>
+```
+
+##### JavaScript Formatting
+**Quote consistency and proper formatting**:
+```javascript
+// ✅ CORRECT - Double quotes and proper formatting
+const paymentForm = {
+    selector: ".payment-form",
+    init: function() {
+        this.setupEventHandlers();
+    },
+};
+
+// ❌ WRONG - Mixed quotes and poor formatting
+const paymentForm={selector:'.payment-form',init:function(){this.setupEventHandlers()}}
+```
+
+##### File Requirements
+**ALWAYS ensure files end with a newline**:
+```python
+# ✅ CORRECT - File ends with newline
+def my_function():
+    return "value"
+
+# ❌ WRONG - Missing newline at end will cause pre-commit failure
+```
+
+**Remove trailing whitespace** - No spaces at the end of lines.
+
+#### Mandatory Pre-commit Workflow
+
+**BEFORE making any code changes:**
 ```bash
-# Install and run pre-commit (essential for OCA compliance)
+# Install and setup pre-commit (REQUIRED)
 pip install pre-commit
 pre-commit install
+
+# Run pre-commit on all files to check current state
 pre-commit run --all-files
+```
+
+**AFTER making any code changes:**
+```bash
+# ALWAYS run pre-commit before committing
+pre-commit run --all-files
+
+# Fix any errors reported and re-run until all checks pass
+# Common commands to fix specific issues:
+
+# Fix Python formatting automatically
+python -m ruff format .
+python -m ruff check --fix .
+
+# Fix XML/JS formatting automatically  
+npx prettier --write "**/*.{xml,js,css,json}"
+
+# Check for trailing whitespace and missing newlines
+git diff --check
+```
+
+#### Common Pre-commit Errors and Solutions
+
+| Error Type | Description | Solution |
+|------------|-------------|----------|
+| **Ruff format** | Single quotes used | Change all single quotes to double quotes |
+| **F401 imported but unused** | Import not explicitly re-exported | Use `from . import module as module` |
+| **end-of-file-fixer** | Missing newline at end | Add newline at end of file |
+| **trailing-whitespace** | Spaces at end of lines | Remove trailing spaces |
+| **prettier** | XML/JS formatting issues | Run `npx prettier --write` on affected files |
+| **check-xml** | Invalid XML syntax | Fix XML syntax errors |
+| **oca-checks-odoo-module** | OCA module compliance | Fix manifest, structure, or naming issues |
+
+#### Error Prevention Checklist
+Before submitting any changes, ensure:
+- [ ] All Python strings use double quotes
+- [ ] All `__init__.py` files use explicit re-exports (`as module`)
+- [ ] All files end with a single newline
+- [ ] No trailing whitespace in any files
+- [ ] XML files are properly formatted with consistent indentation
+- [ ] JavaScript follows consistent quote and formatting rules
+- [ ] Pre-commit runs successfully: `pre-commit run --all-files`
+- [ ] No ruff, prettier, or OCA validation errors
+
+#### Usage
+```bash
+# Essential pre-commit setup (REQUIRED for all contributions)
+pip install pre-commit
+pre-commit install
+
+# Run before every commit (MANDATORY)
+pre-commit run --all-files
+
+# Auto-fix common formatting issues
+python -m ruff format .
+python -m ruff check --fix .
+npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}"
 ```
 
 ### 7. Continuous Integration
@@ -304,12 +479,18 @@ _logger.error("Error message: %s", error_details)
 git clone https://github.com/santzit/l10n-brazil-pagarme.git
 cd l10n-brazil-pagarme
 
-# Install development tools
+# MANDATORY: Install development tools and setup pre-commit
 pip install pre-commit
 pre-commit install
 
-# Quality checks (following .pre-commit-config.yaml)
+# MANDATORY: Quality checks (following .pre-commit-config.yaml)
+# Run this before every commit to prevent CI failures
 pre-commit run --all-files
+
+# Auto-fix common formatting issues
+python -m ruff format .                    # Fix Python formatting (double quotes, etc.)
+python -m ruff check --fix .             # Fix Python linting issues
+npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}"  # Fix XML/JS formatting
 
 # Testing (following .github/workflows/test.yml patterns)
 oca_install_addons
@@ -323,14 +504,19 @@ manifestoo -d . check-dev-status --default-dev-status=Beta
 
 ### Development Checklist
 - [ ] Follow `l10n_br_*` naming convention for Brazilian modules
-- [ ] Implement proper `__manifest__.py` with OCA metadata
-- [ ] Add models in `models/` directory with proper inheritance
-- [ ] Create views in `views/` directory with XML structure
-- [ ] Add tests in `tests/` directory using OCA patterns
+- [ ] Implement proper `__manifest__.py` with OCA metadata using **double quotes**
+- [ ] Add models in `models/` directory with proper inheritance using **double quotes**
+- [ ] Create views in `views/` directory with properly formatted XML structure
+- [ ] Add tests in `tests/` directory using OCA patterns with **double quotes**
 - [ ] Include security definitions in `security/` if needed
-- [ ] Use translation markers `_()` for user-facing strings
+- [ ] Use translation markers `_()` for user-facing strings with **double quotes**
+- [ ] Use explicit re-exports in all `__init__.py` files (`from . import module as module`)
+- [ ] Ensure all files end with a single newline
+- [ ] Remove all trailing whitespace from files
 - [ ] Follow Brazilian localization requirements
-- [ ] Run pre-commit hooks and ensure all checks pass
+- [ ] **MANDATORY**: Run pre-commit hooks and ensure ALL checks pass: `pre-commit run --all-files`
+- [ ] **MANDATORY**: Fix any ruff formatting errors (especially quote standardization)
+- [ ] **MANDATORY**: Fix any prettier formatting errors for XML/JS files
 - [ ] Test with OCA infrastructure using `oca_run_tests`
 - [ ] Validate module compliance with manifestoo tools
 
