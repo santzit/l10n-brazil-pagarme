@@ -13,7 +13,8 @@ from odoo.addons.payment.tests.http_common import PaymentHttpCommon
 class TestPaymentTransaction(PaymentPagarmeCommon, PaymentHttpCommon):
     def test_processing_notification_data_sets_transaction_pending(self):
         """Test that the transaction state is set to 'pending' when the
-        notification data indicate a pending payment."""
+        notification data indicate a pending payment.
+        """
         tx = self._create_transaction("direct")
         tx._process_notification_data(
             dict(self.notification_data, simulated_state="pending")
@@ -23,7 +24,8 @@ class TestPaymentTransaction(PaymentPagarmeCommon, PaymentHttpCommon):
     def test_processing_notification_data_authorizes_transaction(self):
         """Test that the transaction state is set to 'authorize' when the
         notification data indicate a successful payment and manual capture is
-        enabled."""
+        enabled.
+        """
         self.provider.capture_manually = True
         tx = self._create_transaction("direct")
         tx._process_notification_data(self.notification_data)
