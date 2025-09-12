@@ -9,11 +9,15 @@
     "author": "Odoo Community Association (OCA)",
     "website": "https://github.com/OCA/l10n-brazil",
     "depends": ["payment"],
+    "external_dependencies": {
+        "python": ["requests"],
+    },
     "data": [
         "views/payment_pagarme_templates.xml",
         "views/payment_templates.xml",
         "views/payment_token_views.xml",
         "views/payment_transaction_views.xml",
+        "views/payment_provider_views.xml",
         "data/payment_provider_data.xml",
     ],
     "post_init_hook": "post_init_hook",
