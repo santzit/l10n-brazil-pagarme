@@ -59,7 +59,6 @@ export EXCLUDE=""
 **Docker Compose Setup for Local Testing:**
 ```yaml
 # docker-compose-oca-test.yml (create temporarily for testing)
-version: '3.8'
 services:
   postgres:
     image: postgres:14.0
@@ -92,6 +91,7 @@ services:
       - PGUSER=odoo
       - PGPASSWORD=odoo
       - PGDATABASE=odoo
+      - ADDONS_PATH=/opt/odoo/addons,/opt/odoo/addons/custom
     networks:
       - oca-network
 
@@ -104,7 +104,6 @@ networks:
 ```bash
 # Step 1: Create Docker Compose file and start PostgreSQL
 cat > docker-compose-oca-test.yml << 'EOF'
-version: '3.8'
 services:
   postgres:
     image: postgres:14.0
@@ -137,6 +136,7 @@ services:
       - PGUSER=odoo
       - PGPASSWORD=odoo
       - PGDATABASE=odoo
+      - ADDONS_PATH=/opt/odoo/addons,/opt/odoo/addons/custom
     networks:
       - oca-network
 
@@ -148,17 +148,17 @@ EOF
 # Step 2: Start PostgreSQL service
 docker compose -f docker-compose-oca-test.yml up -d postgres
 
-# Step 3: Install addons using Docker Compose run
-docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_install_addons"
+# Step 3: Install dependencies first
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "odoo --addons-path=\$ADDONS_PATH --stop-after-init --log-level=warn -i base,payment"
 
-# Step 4: Test PostgreSQL connectivity using Docker (MANDATORY after oca_install_addons)
+# Step 4: Install our module
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "odoo --addons-path=\$ADDONS_PATH --stop-after-init --log-level=info -i l10n_br_payment_pagarme"
+
+# Step 5: Test PostgreSQL connectivity using Docker (MANDATORY after installation)
 docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "echo 'Testing PostgreSQL connectivity...' && timeout 30 bash -c 'until pg_isready -h postgres -p 5432 -U odoo; do echo \"Waiting for PostgreSQL...\"; sleep 2; done' && echo 'PostgreSQL connection verified ✅'"
 
-# Step 5: Initialize test database using Docker Compose
-docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_init_test_database"
-
-# Step 6: Run tests using Docker Compose  
-docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_run_tests"
+# Step 6: Run tests on the installed module
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "odoo --addons-path=\$ADDONS_PATH --test-enable --stop-after-init --log-level=info -u l10n_br_payment_pagarme"
 
 # Step 7: Cleanup
 docker compose -f docker-compose-oca-test.yml down
