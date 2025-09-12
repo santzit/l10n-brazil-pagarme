@@ -5,82 +5,86 @@ import logging
 from odoo import _, fields, models
 from odoo.exceptions import UserError, ValidationError
 
-from odoo.addons.payment import utils as payment_utils
 
 _logger = logging.getLogger(__name__)
 
 
 class PaymentTransaction(models.Model):
-    _inherit = 'payment.transaction'
+    _inherit = "payment.transaction"
 
-    capture_manually = fields.Boolean(related='provider_id.capture_manually')
+    capture_manually = fields.Boolean(related="provider_id.capture_manually")
 
-    #=== ACTION METHODS ===#
+    # === ACTION METHODS ===#
 
     def action_pagarme_set_done(self):
-        """ Set the state of the pagarme transaction to 'done'.
+        """Set the state of the pagarme transaction to 'done'.
 
         Note: self.ensure_one()
 
         :return: None
         """
         self.ensure_one()
-        if self.provider_code != 'pagarme':
+        if self.provider_code != "pagarme":
             return
 
-        notification_data = {'reference': self.reference, 'simulated_state': 'done'}
-        self._handle_notification_data('pagarme', notification_data)
+        notification_data = {"reference": self.reference, "simulated_state": "done"}
+        self._handle_notification_data("pagarme", notification_data)
 
     def action_pagarme_set_canceled(self):
-        """ Set the state of the pagarme transaction to 'cancel'.
+        """Set the state of the pagarme transaction to 'cancel'.
 
         Note: self.ensure_one()
 
         :return: None
         """
         self.ensure_one()
-        if self.provider_code != 'pagarme':
+        if self.provider_code != "pagarme":
             return
 
-        notification_data = {'reference': self.reference, 'simulated_state': 'cancel'}
-        self._handle_notification_data('pagarme', notification_data)
+        notification_data = {"reference": self.reference, "simulated_state": "cancel"}
+        self._handle_notification_data("pagarme", notification_data)
 
     def action_pagarme_set_error(self):
-        """ Set the state of the pagarme transaction to 'error'.
+        """Set the state of the pagarme transaction to 'error'.
 
         Note: self.ensure_one()
 
         :return: None
         """
         self.ensure_one()
-        if self.provider_code != 'pagarme':
+        if self.provider_code != "pagarme":
             return
 
-        notification_data = {'reference': self.reference, 'simulated_state': 'error'}
-        self._handle_notification_data('pagarme', notification_data)
+        notification_data = {"reference": self.reference, "simulated_state": "error"}
+        self._handle_notification_data("pagarme", notification_data)
 
-    #=== BUSINESS METHODS ===#
+    # === BUSINESS METHODS ===#
 
     def _send_payment_request(self):
-        """ Override of payment to simulate a payment request.
+        """Override of payment to simulate a payment request.
 
         Note: self.ensure_one()
 
         :return: None
         """
         super()._send_payment_request()
-        if self.provider_code != 'pagarme':
+        if self.provider_code != "pagarme":
             return
 
         if not self.token_id:
-            raise UserError("Pagarme: " + _("The transaction is not linked to a token."))
+            raise UserError(
+                "Pagarme: " + _("The transaction is not linked to a token.")
+            )
 
         simulated_state = self.token_id.pagarme_simulated_state
-        notification_data = {'reference': self.reference, 'simulated_state': simulated_state}
-        self._handle_notification_data('pagarme', notification_data)
+        notification_data = {
+            "reference": self.reference,
+            "simulated_state": simulated_state,
+        }
+        self._handle_notification_data("pagarme", notification_data)
 
     def _send_refund_request(self, **kwargs):
-        """ Override of payment to simulate a refund.
+        """Override of payment to simulate a refund.
 
         Note: self.ensure_one()
 
@@ -89,48 +93,51 @@ class PaymentTransaction(models.Model):
         :rtype: recordset of `payment.transaction`
         """
         refund_tx = super()._send_refund_request(**kwargs)
-        if self.provider_code != 'pagarme':
+        if self.provider_code != "pagarme":
             return refund_tx
 
-        notification_data = {'reference': refund_tx.reference, 'simulated_state': 'done'}
-        refund_tx._handle_notification_data('pagarme', notification_data)
+        notification_data = {
+            "reference": refund_tx.reference,
+            "simulated_state": "done",
+        }
+        refund_tx._handle_notification_data("pagarme", notification_data)
 
         return refund_tx
 
     def _send_capture_request(self):
-        """ Override of payment to simulate a capture request.
+        """Override of payment to simulate a capture request.
 
         Note: self.ensure_one()
 
         :return: None
         """
         super()._send_capture_request()
-        if self.provider_code != 'pagarme':
+        if self.provider_code != "pagarme":
             return
 
         notification_data = {
-            'reference': self.reference,
-            'simulated_state': 'done',
-            'manual_capture': True,  # Distinguish manual captures from regular one-step captures.
+            "reference": self.reference,
+            "simulated_state": "done",
+            "manual_capture": True,  # Distinguish manual captures from regular one-step captures.
         }
-        self._handle_notification_data('pagarme', notification_data)
+        self._handle_notification_data("pagarme", notification_data)
 
     def _send_void_request(self):
-        """ Override of payment to simulate a void request.
+        """Override of payment to simulate a void request.
 
         Note: self.ensure_one()
 
         :return: None
         """
         super()._send_void_request()
-        if self.provider_code != 'pagarme':
+        if self.provider_code != "pagarme":
             return
 
-        notification_data = {'reference': self.reference, 'simulated_state': 'cancel'}
-        self._handle_notification_data('pagarme', notification_data)
+        notification_data = {"reference": self.reference, "simulated_state": "cancel"}
+        self._handle_notification_data("pagarme", notification_data)
 
     def _get_tx_from_notification_data(self, provider_code, notification_data):
-        """ Override of payment to find the transaction based on pagarme data.
+        """Override of payment to find the transaction based on pagarme data.
 
         :param str provider_code: The code of the provider that handled the transaction
         :param dict notification_data: The pagarme notification data
@@ -139,19 +146,22 @@ class PaymentTransaction(models.Model):
         :raise: ValidationError if the data match no transaction
         """
         tx = super()._get_tx_from_notification_data(provider_code, notification_data)
-        if provider_code != 'pagarme' or len(tx) == 1:
+        if provider_code != "pagarme" or len(tx) == 1:
             return tx
 
-        reference = notification_data.get('reference')
-        tx = self.search([('reference', '=', reference), ('provider_code', '=', 'pagarme')])
+        reference = notification_data.get("reference")
+        tx = self.search(
+            [("reference", "=", reference), ("provider_code", "=", "pagarme")]
+        )
         if not tx:
             raise ValidationError(
-                "Pagarme: " + _("No transaction found matching reference %s.", reference)
+                "Pagarme: "
+                + _("No transaction found matching reference %s.", reference)
             )
         return tx
 
     def _process_notification_data(self, notification_data):
-        """ Override of payment to process the transaction based on pagarme data.
+        """Override of payment to process the transaction based on pagarme data.
 
         Note: self.ensure_one()
 
@@ -160,10 +170,10 @@ class PaymentTransaction(models.Model):
         :raise: ValidationError if inconsistent data were received
         """
         super()._process_notification_data(notification_data)
-        if self.provider_code != 'pagarme':
+        if self.provider_code != "pagarme":
             return
 
-        self.provider_reference = f'pagarme-{self.reference}'
+        self.provider_reference = f"pagarme-{self.reference}"
 
         if self.tokenize:
             # The reasons why we immediately tokenize the transaction regardless of the state rather
@@ -174,25 +184,27 @@ class PaymentTransaction(models.Model):
             #   said simulated state.
             self._pagarme_tokenize_from_notification_data(notification_data)
 
-        state = notification_data['simulated_state']
-        if state == 'pending':
+        state = notification_data["simulated_state"]
+        if state == "pending":
             self._set_pending()
-        elif state == 'done':
-            if self.capture_manually and not notification_data.get('manual_capture'):
+        elif state == "done":
+            if self.capture_manually and not notification_data.get("manual_capture"):
                 self._set_authorized()
             else:
                 self._set_done()
                 # Immediately post-process the transaction if it is a refund, as the post-processing
                 # will not be triggered by a customer browsing the transaction from the portal.
-                if self.operation == 'refund':
-                    self.env.ref('payment.cron_post_process_payment_tx')._trigger()
-        elif state == 'cancel':
+                if self.operation == "refund":
+                    self.env.ref("payment.cron_post_process_payment_tx")._trigger()
+        elif state == "cancel":
             self._set_canceled()
         else:  # Simulate an error state.
-            self._set_error(_("You selected the following pagarme payment status: %s", state))
+            self._set_error(
+                _("You selected the following pagarme payment status: %s", state)
+            )
 
     def _pagarme_tokenize_from_notification_data(self, notification_data):
-        """ Create a new token based on the notification data.
+        """Create a new token based on the notification data.
 
         Note: self.ensure_one()
 
@@ -201,19 +213,25 @@ class PaymentTransaction(models.Model):
         """
         self.ensure_one()
 
-        state = notification_data['simulated_state']
-        token = self.env['payment.token'].create({
-            'provider_id': self.provider_id.id,
-            'payment_details': notification_data['payment_details'],
-            'partner_id': self.partner_id.id,
-            'provider_ref': 'fake provider reference',
-            'verified': True,
-            'pagarme_simulated_state': state,
-        })
-        self.write({
-            'token_id': token,
-            'tokenize': False,
-        })
+        state = notification_data["simulated_state"]
+        token = self.env["payment.token"].create(
+            {
+                "provider_id": self.provider_id.id,
+                "payment_details": notification_data["payment_details"],
+                "partner_id": self.partner_id.id,
+                "provider_ref": "fake provider reference",
+                "verified": True,
+                "pagarme_simulated_state": state,
+            }
+        )
+        self.write(
+            {
+                "token_id": token,
+                "tokenize": False,
+            }
+        )
         _logger.info(
-            "Created token with id %s for partner with id %s.", token.id, self.partner_id.id
+            "Created token with id %s for partner with id %s.",
+            token.id,
+            self.partner_id.id,
         )

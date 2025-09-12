@@ -109,3 +109,9 @@ dmypy.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Node.js (temporary files for development)
+node_modules/
+package-lock.json
+package.json
+.prettierrc

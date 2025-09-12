@@ -39,26 +39,26 @@ odoo.define('l10n_br_payment_pagarme.payment_form', require => {
             });
         },
 
-        /**
-         * Prepare the inline form of Pagarme for direct payment.
-         *
-         * @override method from payment.payment_form_mixin
-         * @private
-         * @param {string} code - The code of the selected payment option's provider
-         * @param {integer} paymentOptionId - The id of the selected payment option
-         * @param {string} flow - The online payment flow of the selected payment option
-         * @return {Promise}
-         */
-        _prepareInlineForm: function (code, paymentOptionId, flow) {
-            if (code !== 'pagarme') {
-                return this._super(...arguments);
-            } else if (flow === 'token') {
-                return Promise.resolve();
-            }
-            this._setPaymentFlow('direct');
-            return Promise.resolve()
-        },
-    };
-    checkoutForm.include(paymentPagarmeMixin);
-    manageForm.include(paymentPagarmeMixin);
+    /**
+     * Prepare the inline form of Pagarme for direct payment.
+     *
+     * @override method from payment.payment_form_mixin
+     * @private
+     * @param {string} code - The code of the selected payment option's provider
+     * @param {integer} paymentOptionId - The id of the selected payment option
+     * @param {string} flow - The online payment flow of the selected payment option
+     * @return {Promise}
+     */
+    _prepareInlineForm: function (code, paymentOptionId, flow) {
+      if (code !== "pagarme") {
+        return this._super(...arguments);
+      } else if (flow === "token") {
+        return Promise.resolve();
+      }
+      this._setPaymentFlow("direct");
+      return Promise.resolve();
+    },
+  };
+  checkoutForm.include(paymentPagarmeMixin);
+  manageForm.include(paymentPagarmeMixin);
 });
