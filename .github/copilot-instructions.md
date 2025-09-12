@@ -799,7 +799,7 @@ manifestoo -d . check-dev-status --default-dev-status=Beta
 
 ### Environment Requirements
 
-- **Python**: 3.10 (as per OCA CI configuration)
+- **Python**: 3.9 (as per GitHub Actions configuration)
 - **Odoo**: 16.0 compatibility required
 - **Database**: PostgreSQL 14.0+ for testing
 - **Tools**: Docker (for OCA testing), pre-commit, manifestoo
