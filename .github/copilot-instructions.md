@@ -10,7 +10,7 @@ This is an **Odoo 16.0 OCA (Odoo Community Association) module repository** for 
 
 ### Rule 1: MANDATORY Validation Before ANY Commit
 
-**CRITICAL: BOTH pre-commit AND OCA test tools MUST pass before ANY commit**
+**CRITICAL: pre-commit, PostgreSQL connectivity, AND OCA test tools MUST pass before ANY commit**
 
 Following the OCA l10n-brazil test.yml reference workflow, these validation steps are MANDATORY:
 
@@ -23,6 +23,11 @@ pre-commit run --all-files
 # Following OCA recommendations with INCLUDE/EXCLUDE environment variables
 export INCLUDE="l10n_br_payment_pagarme"
 export EXCLUDE=""
+
+# CRITICAL: Verify PostgreSQL connectivity BEFORE OCA tools (prevents timeouts)
+echo "Verifying PostgreSQL connectivity before OCA testing..."
+timeout 30 bash -c 'until pg_isready -h localhost -p 5432 -U odoo; do echo "Waiting for PostgreSQL..."; sleep 2; done'
+echo "PostgreSQL connection verified ✅"
 
 # Initialize test database
 echo "Initializing test database with OCA tools..."
@@ -39,16 +44,17 @@ oca_run_tests
 ```
 
 **COMMIT ENFORCEMENT RULES:**
-- **NO COMMITS** are allowed unless BOTH validations pass completely
-- **NO ALTERNATIVE SOLUTIONS** are permitted - both tools are mandatory  
-- **NO EXCEPTIONS** - if either validation fails, the commit MUST NOT proceed
+- **NO COMMITS** are allowed unless ALL THREE validations pass completely
+- **NO ALTERNATIVE SOLUTIONS** are permitted - all three tools are mandatory  
+- **NO EXCEPTIONS** - if any validation fails, the commit MUST NOT proceed
 - **ERROR REPORTING** - if validation fails, report the specific error and stop the process
 
 **ENFORCEMENT SEQUENCE:**
 1. Execute `pre-commit run --all-files` - MUST PASS
-2. Execute OCA testing sequence - MUST PASS
-3. Only proceed with commit if BOTH pass
-4. If either fails: STOP, report error in comment, do NOT commit
+2. Verify PostgreSQL connectivity with timeout check - MUST PASS
+3. Execute OCA testing sequence with INCLUDE/EXCLUDE env vars - MUST PASS
+4. Only proceed with commit if ALL steps pass
+5. If any step fails: STOP, report error in comment, do NOT commit
 
 ### Rule 2: Zero Tolerance for Formatting Violations
 
@@ -128,6 +134,7 @@ oca_run_tests
 | `pre-commit install` | < 1 second | 30 seconds | Local operation |
 | `pre-commit run --all-files` (first time) | 40 seconds | 90 seconds | Downloads environments |
 | `pre-commit run --all-files` (subsequent) | 10 seconds | 60 seconds | Uses cached environments |
+| PostgreSQL connectivity check | 2-5 seconds | 30 seconds | Network + service dependent |
 | `python -m ruff format .` | < 1 second | 30 seconds | Fast formatter |
 | `python -m ruff check --fix .` | < 1 second | 30 seconds | Fast linter |
 | `npx prettier --write ...` | < 1 second | 30 seconds | Fast formatter |
@@ -385,9 +392,15 @@ oca_init_test_database   # Initialize test database
 oca_run_tests           # Run all tests
 
 # For local development with Docker:
-docker run --rm -v $(pwd):/opt/odoo/addons/custom \
+docker run --rm --network host -v $(pwd):/opt/odoo/addons/custom \
   ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest \
-  bash -c "export INCLUDE='l10n_br_payment_pagarme' && export EXCLUDE='' && oca_run_tests"
+  bash -c "
+    export INCLUDE='l10n_br_payment_pagarme' && export EXCLUDE='' && \
+    echo 'Verifying PostgreSQL connectivity...' && \
+    timeout 30 bash -c 'until pg_isready -h localhost -p 5432 -U odoo; do echo \"Waiting for PostgreSQL...\"; sleep 2; done' && \
+    echo 'PostgreSQL connection verified ✅' && \
+    oca_run_tests
+  "
 ```
 
 ### 4. Brazilian Market Specifics
@@ -721,9 +734,15 @@ The repository uses GitHub Actions workflows defined in `.github/workflows/`:
 ```bash
 # Use the same OCA containers as CI
 # Following OCA recommendation with INCLUDE/EXCLUDE environment variables
-docker run --rm -v $(pwd):/opt/odoo/addons/custom \
+docker run --rm --network host -v $(pwd):/opt/odoo/addons/custom \
   ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest \
-  bash -c "export INCLUDE='l10n_br_payment_pagarme' && export EXCLUDE='' && oca_run_tests"
+  bash -c "
+    export INCLUDE='l10n_br_payment_pagarme' && export EXCLUDE='' && \
+    echo 'Verifying PostgreSQL connectivity...' && \
+    timeout 30 bash -c 'until pg_isready -h localhost -p 5432 -U odoo; do echo \"Waiting for PostgreSQL...\"; sleep 2; done' && \
+    echo 'PostgreSQL connection verified ✅' && \
+    oca_run_tests
+  "
 
 # Check module compliance (as per test.yml)
 manifestoo -d . check-licenses
