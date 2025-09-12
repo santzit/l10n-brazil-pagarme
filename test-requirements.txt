@@ -1,0 +1,4 @@
+# vcrpy  # Needed by payment_pagseguro
+odoo-test-helper  # Needed by spec_driven_model
+pyopenssl==22.1.0
+xmldiff

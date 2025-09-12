@@ -4,12 +4,7 @@
     <div t-attf-id="pagarme-container-{{provider_id}}">
       <div class="row">
         <div class="mb-3">
-          <input
-            name="provider_id"
-            type="hidden"
-            id="provider_id"
-            t-att-value="id"
-          />
+          <input name="provider_id" type="hidden" id="provider_id" t-att-value="id" />
           <input name="partner_id" type="hidden" t-att-value="partner_id" />
         </div>
         <div class="col mt-0 mb-0">
@@ -55,12 +50,10 @@
     <div t-attf-id="pagarme-token-container-{{token.id}}">
       <div class="alert alert-warning m-2">
         <span t-if="token.pagarme_simulated_state=='pending'">
-                    Payments made with this payment method will remain <b
-          >pending</b>.
+                    Payments made with this payment method will remain <b>pending</b>.
                 </span>
         <span t-elif="token.pagarme_simulated_state=='done'">
-                    Payments made with this payment method will be <b
-          >successful</b>.
+                    Payments made with this payment method will be <b>successful</b>.
                 </span>
         <span t-elif="token.pagarme_simulated_state=='cancel'">
                     Payments made with this payment method will be automatically <b

@@ -26,7 +26,7 @@ odoo.define("l10n_br_payment_pagarme.payment_form", (require) => {
 
       const customerInput = document.getElementById("customer_input").value;
       const simulatedPaymentState = document.getElementById(
-        "simulated_payment_state",
+        "simulated_payment_state"
       ).value;
       return this._rpc({
         route: "/payment/pagarme/simulate_payment",

@@ -2,7 +2,8 @@
 
 ## 🚨 MANDATORY COPILOT FIREWALL RULES 🚨
 
-**THESE RULES MUST BE FOLLOWED WITHOUT EXCEPTION - NO CODE CHANGES ARE ALLOWED WITHOUT COMPLIANCE**
+**THESE RULES MUST BE FOLLOWED WITHOUT EXCEPTION - NO CODE CHANGES ARE ALLOWED WITHOUT
+COMPLIANCE**
 
 ### Rule 1: Pre-commit Execution is MANDATORY
 
@@ -21,7 +22,8 @@ find . -name "*.py" -exec python -m py_compile {} \;
 
 - **Python**: ONLY double quotes allowed - `"string"` ✅, `'string'` ❌
 - **Line Length**: MAXIMUM 88 characters per line (E501 enforced by ruff)
-- **Imports**: ONLY explicit re-exports in `__init__.py` - `from . import models as models` ✅
+- **Imports**: ONLY explicit re-exports in `__init__.py` -
+  `from . import models as models` ✅
 - **Files**: MUST end with single newline, NO trailing whitespace
 - **XML/JS**: MUST pass prettier formatting validation
 - **Docstrings**: Break long docstrings across multiple lines to stay under 88 chars
@@ -38,7 +40,8 @@ find . -name "*.py" -exec python -m py_compile {} \;       # Syntax validation
 
 ### Rule 4: Emergency Protocols for Network Issues
 
-When pre-commit installation fails due to network issues, execute these commands immediately:
+When pre-commit installation fails due to network issues, execute these commands
+immediately:
 
 ```bash
 # Install tools directly if pre-commit network fails
@@ -54,25 +57,146 @@ find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.par
 
 **FAILURE TO COMPLY WITH THESE FIREWALL RULES WILL RESULT IN CI PIPELINE FAILURES**
 
+### Rule 5: File Modification Restrictions
+
+**CRITICAL: Root and GitHub directory protection rules - NO EXCEPTIONS**
+
+- **FORBIDDEN**: Do NOT modify any files in root directory (e.g.,
+  `.pre-commit-config.yaml`, `.eslintrc.json`, `requirements.txt`, `setup.py`, etc.)
+  unless EXPLICITLY requested by user
+- **FORBIDDEN**: Do NOT modify any files in `.github/` directory (except
+  `.github/copilot-instructions.md`) unless EXPLICITLY requested by user
+- **REQUIRED**: Only modify module files within `l10n_br_payment_pagarme/` directory
+  unless user specifically asks for root/github changes
+- **EXCEPTION**: The `.github/copilot-instructions.md` file can be modified when
+  updating documentation
+
+### Rule 6: Testing Requirements Before Commits
+
+**MANDATORY: Run tests before any code changes are committed**
+
+```bash
+# REQUIRED: Execute test workflow before committing changes (from .github/workflows/test.yml)
+
+# 1. Install addons and dependencies
+oca_install_addons
+
+# 2. Check licenses and development status
+manifestoo -d . check-licenses
+manifestoo -d . check-dev-status --default-dev-status=Beta
+
+# 3. Initialize test database
+oca_init_test_database
+
+# 4. Run tests
+oca_run_tests
+
+# Alternative: If OCA tools not available locally, validate basic syntax and structure:
+find . -name "*.py" -exec python -m py_compile {} \;
+
+# CRITICAL: XML view validation to prevent test failures
+find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: XML syntax OK')" \;
+
+# CRITICAL: Data XML validation to prevent record reference errors
+python -c "
+import os
+import xml.etree.ElementTree as ET
+
+def validate_data_xml_references():
+    '''Validate XML data files for proper record references and external IDs'''
+    for root, dirs, files in os.walk('.'):
+        if 'data' in dirs:
+            data_path = os.path.join(root, 'data')
+            xml_files = [f for f in os.listdir(data_path) if f.endswith('.xml')]
+            for xml_file in xml_files:
+                xml_path = os.path.join(data_path, xml_file)
+                try:
+                    tree = ET.parse(xml_path)
+                    root_elem = tree.getroot()
+
+                    # Check for records with problematic external IDs
+                    for record in root_elem.findall('.//record'):
+                        record_id = record.get('id', '')
+
+                        # Check for cross-module references without proper prefixing
+                        if '.' in record_id and not record_id.startswith('l10n_br_payment_pagarme.'):
+                            print(f'WARNING: {xml_file} - Record id=\"{record_id}\" may reference external module incorrectly')
+
+                        # Check field references (ref attributes)
+                        for field in record.findall('field[@ref]'):
+                            ref_value = field.get('ref', '')
+                            field_name = field.get('name', '')
+
+                            # Check if referencing views that should be module-prefixed
+                            if ref_value in ['inline_form', 'token_inline_form'] and not ref_value.startswith('l10n_br_payment_pagarme.'):
+                                print(f'ERROR: {xml_file} - Field {field_name} references \"{ref_value}\" without module prefix. Should be \"l10n_br_payment_pagarme.{ref_value}\"')
+                                return False
+
+                            # Check for other unqualified references that might be internal
+                            if '.' not in ref_value and ref_value not in ['True', 'False'] and not ref_value.isdigit():
+                                print(f'WARNING: {xml_file} - Field {field_name} references \"{ref_value}\" - ensure this external ID exists or is properly qualified')
+
+                    print(f'{xml_file}: Data XML validation OK')
+                except ET.ParseError as e:
+                    print(f'ERROR: {xml_file} - XML parsing failed: {e}')
+                    return False
+                except Exception as e:
+                    print(f'ERROR: {xml_file} - Validation failed: {e}')
+                    return False
+    return True
+
+# Run validation
+if not validate_data_xml_references():
+    print('Data XML validation FAILED - fix errors before committing')
+    exit(1)
+else:
+    print('All data XML files validated successfully')
+"
+
+# IMPORTANT: Basic module structure validation
+python -c "
+import os
+for root, dirs, files in os.walk('l10n_br_payment_pagarme'):
+    if 'views' in dirs:
+        views_path = os.path.join(root, 'views')
+        xml_files = [f for f in os.listdir(views_path) if f.endswith('.xml')]
+        if xml_files:
+            print(f'Found XML views: {xml_files}')
+            # Basic check that view files don't have broken inheritance
+            for xml_file in xml_files:
+                xml_path = os.path.join(views_path, xml_file)
+                with open(xml_path, 'r') as f:
+                    content = f.read()
+                    if 'inherit_id=' in content and 'xpath' in content:
+                        print(f'WARNING: {xml_file} contains view inheritance - ensure xpath targets exist in parent view')
+"
+```
+
 ---
 
 ## Repository Overview
 
-This is an **ODOO 16.0 OCA (Odoo Community Association) repository** for **Brazilian localization modules**, with a focus on payment providers and Brazilian market requirements.
+This is an **ODOO 16.0 OCA (Odoo Community Association) repository** for **Brazilian
+localization modules**, with a focus on payment providers and Brazilian market
+requirements.
 
 **Key Context:**
 
-- **Purpose**: Brazilian localization modules for Odoo, including payment providers and market-specific features
+- **Purpose**: Brazilian localization modules for Odoo, including payment providers and
+  market-specific features
 - **Odoo Version**: 16.0 (follow version-specific patterns and APIs)
 - **OCA Compliance**: Strict adherence to OCA standards for community modules
-- **Localization Focus**: Brazilian market requirements, regulations, and payment systems
+- **Localization Focus**: Brazilian market requirements, regulations, and payment
+  systems
 - **Module Pattern**: `l10n_br_*` naming convention for Brazilian localization modules
 
-The repository follows OCA standards and best practices for Odoo module development with specific focus on Brazilian market requirements.
+The repository follows OCA standards and best practices for Odoo module development with
+specific focus on Brazilian market requirements.
 
 ## Repository Structure
 
-This repository contains Brazilian localization modules following OCA directory standards:
+This repository contains Brazilian localization modules following OCA directory
+standards:
 
 ```
 l10n_br_module_name/              # Module directory (l10n_br_* pattern)
@@ -97,7 +221,8 @@ l10n_br_module_name/              # Module directory (l10n_br_* pattern)
 - **ALWAYS** follow the OCA module structure pattern
 - **REQUIRED**: Each module must have `__manifest__.py` with proper OCA metadata
 - **REQUIRED**: Include `__init__.py` files in all Python directories
-- Use descriptive names following OCA naming conventions (`l10n_br_*` for Brazilian localization)
+- Use descriptive names following OCA naming conventions (`l10n_br_*` for Brazilian
+  localization)
 
 #### Manifest File Requirements
 
@@ -214,7 +339,8 @@ class TestModuleFunctionality(TransactionCase):
 
 #### Running Tests
 
-The repository uses OCA testing infrastructure as defined in `.github/workflows/test.yml`:
+The repository uses OCA testing infrastructure as defined in
+`.github/workflows/test.yml`:
 
 ```bash
 # Tests are run automatically using OCA CI containers
@@ -281,11 +407,13 @@ class TestUIFunctionality(HttpCase):
         pass
 ```
 
-Follow the testing patterns established in `.github/workflows/test.yml` for consistency with CI/CD pipeline.
+Follow the testing patterns established in `.github/workflows/test.yml` for consistency
+with CI/CD pipeline.
 
 ### 6. Pre-commit Configuration and Error Prevention
 
-The repository includes comprehensive pre-commit hooks for code quality that **MUST** be followed to prevent CI failures:
+The repository includes comprehensive pre-commit hooks for code quality that **MUST** be
+followed to prevent CI failures:
 
 #### Available Hooks
 
@@ -349,7 +477,7 @@ class PaymentProvider(models.Model):
 def test_processing_notification_data_sets_transaction_pending(self):
     """Test that the transaction state is set to 'pending' when the
     notification data indicate a pending payment."""
-    
+
 # ✅ CORRECT - Break long comments
 # The reasons why we immediately tokenize the transaction regardless of
 # the state rather than waiting for the payment method to be validated
@@ -461,7 +589,7 @@ git diff --check
 | Error Type                   | Description                       | Solution                                     |
 | ---------------------------- | --------------------------------- | -------------------------------------------- |
 | **Ruff format**              | Single quotes used                | Change all single quotes to double quotes    |
-| **E501 Line too long**       | Lines exceed 88 characters       | Break long lines, docstrings, and comments  |
+| **E501 Line too long**       | Lines exceed 88 characters        | Break long lines, docstrings, and comments   |
 | **F401 imported but unused** | Import not explicitly re-exported | Use `from . import module as module`         |
 | **end-of-file-fixer**        | Missing newline at end            | Add newline at end of file                   |
 | **trailing-whitespace**      | Spaces at end of lines            | Remove trailing spaces                       |
@@ -501,7 +629,8 @@ npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}"
 
 #### Network Issues and Alternative Validation
 
-If pre-commit encounters network issues during installation, use these alternative validation methods:
+If pre-commit encounters network issues during installation, use these alternative
+validation methods:
 
 ```bash
 # Install core tools directly
@@ -530,7 +659,8 @@ find . -name "*.py" -exec sh -c 'if [ "$(tail -c1 "$1")" != "" ]; then echo "$1"
 
 When updating README.md files, follow OCA standards:
 
-- **Include badges**: Runboat, Pre-commit Status, Build Status, codecov, Translation Status
+- **Include badges**: Runboat, Pre-commit Status, Build Status, codecov, Translation
+  Status
 - **Bilingual content**: Portuguese and English for Brazilian localization
 - **Proper sections**: Features, Installation, Configuration, Development, Contributing
 - **OCA footer**: Include OCA mission statement
@@ -745,7 +875,8 @@ manifestoo -d . check-dev-status --default-dev-status=Beta
 
 - [ ] **FIREWALL RULE 1**: Execute `pre-commit run --all-files` after EVERY code change
 - [ ] **FIREWALL RULE 2**: All Python strings use double quotes (ruff enforced)
-- [ ] **FIREWALL RULE 3**: All `__init__.py` use explicit re-exports (`from . import module as module`)
+- [ ] **FIREWALL RULE 3**: All `__init__.py` use explicit re-exports
+      (`from . import module as module`)
 - [ ] **FIREWALL RULE 4**: All files end with single newline, no trailing whitespace
 - [ ] **FIREWALL RULE 5**: Execute emergency protocols if pre-commit network fails
 
@@ -758,33 +889,53 @@ manifestoo -d . check-dev-status --default-dev-status=Beta
 - [ ] Add tests in `tests/` directory using OCA patterns with **double quotes**
 - [ ] Include security definitions in `security/` if needed
 - [ ] Use translation markers `_()` for user-facing strings with **double quotes**
-- [ ] Use explicit re-exports in all `__init__.py` files (`from . import module as module`)
+- [ ] Use explicit re-exports in all `__init__.py` files
+      (`from . import module as module`)
 - [ ] Ensure all files end with a single newline
 - [ ] Remove all trailing whitespace from files
 - [ ] Follow Brazilian localization requirements
-- [ ] **README.md**: Follow OCA standards with badges, bilingual content, and proper structure
+- [ ] **README.md**: Follow OCA standards with badges, bilingual content, and proper
+      structure
 - [ ] **README.md**: Include Runboat links, installation instructions, and OCA footer
 - [ ] **README.md**: Use auto-generated addons table format with proper comments
 
 #### Final Validation (MANDATORY BEFORE COMMIT)
 
-- [ ] **MANDATORY**: Run pre-commit hooks and ensure ALL checks pass: `pre-commit run --all-files`
+- [ ] **MANDATORY**: Run tests following `.github/workflows/test.yml` patterns BEFORE
+      any commits
+- [ ] **MANDATORY**: Run pre-commit hooks and ensure ALL checks pass:
+      `pre-commit run --all-files`
 - [ ] **MANDATORY**: Fix any ruff formatting errors (especially quote standardization)
 - [ ] **MANDATORY**: Fix any prettier formatting errors for XML/JS files
-- [ ] **MANDATORY**: Validate Python syntax compilation: `find . -name "*.py" -exec python -m py_compile {} \;`
-- [ ] **MANDATORY**: Validate XML syntax: `find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;`
+- [ ] **MANDATORY**: Validate Python syntax compilation:
+      `find . -name "*.py" -exec python -m py_compile {} \;`
+- [ ] **MANDATORY**: Validate XML syntax:
+      `find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;`
+- [ ] **MANDATORY**: Validate data XML files for proper external ID references (critical
+      for preventing test failures): - Run the enhanced data XML validation script from
+      Rule 6 - Ensure all `ref` attributes in data files use proper module prefixing
+      (e.g., `l10n_br_payment_pagarme.view_id`) - Check that cross-module record IDs
+      don't incorrectly reference external modules - Verify that all referenced external
+      IDs actually exist in the referenced modules
+- [ ] **MANDATORY**: Check XML view inheritance validity (critical for preventing test
+      failures): - Ensure all xpath expressions in inherited views target elements that
+      exist in parent views - Use `xpath expr="."` for adding content inside parent
+      elements when specific hooks don't exist - Avoid targeting non-existent named
+      elements like `[@name='non_existent_hook']`
 - [ ] Test with OCA infrastructure using `oca_run_tests`
 - [ ] Validate module compliance with manifestoo tools
 
 ### Environment Requirements
 
-- **Python**: 3.10 (as per OCA CI configuration)
+- **Python**: 3.9 (as per GitHub Actions configuration)
 - **Odoo**: 16.0 compatibility required
 - **Database**: PostgreSQL 14.0+ for testing
 - **Tools**: Docker (for OCA testing), pre-commit, manifestoo
 - **Brazilian Context**: Understanding of Brazilian market and regulatory requirements
 
-This repository maintains high OCA standards while focusing on Brazilian localization requirements. Always prioritize code quality, comprehensive testing, regulatory compliance, and maintainability when developing new modules or features.
+This repository maintains high OCA standards while focusing on Brazilian localization
+requirements. Always prioritize code quality, comprehensive testing, regulatory
+compliance, and maintainability when developing new modules or features.
 
 ---
 
@@ -802,6 +953,9 @@ npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}"
 find . -name "*.py" -exec python -m py_compile {} \;
 ```
 
-**Failure to execute these firewall rules will result in CI pipeline failures and blocked merges.**
+**Failure to execute these firewall rules will result in CI pipeline failures and
+blocked merges.**
 
-Remember: Pre-commit hooks are your first line of defense against formatting errors and CI failures. The pre-commit environment shown in the successful execution indicates that all necessary tools are properly installed and ready for validation.
+Remember: Pre-commit hooks are your first line of defense against formatting errors and
+CI failures. The pre-commit environment shown in the successful execution indicates that
+all necessary tools are properly installed and ready for validation.

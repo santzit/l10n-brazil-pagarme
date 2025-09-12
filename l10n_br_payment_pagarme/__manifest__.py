@@ -6,7 +6,8 @@
     "category": "Hidden",
     "sequence": 350,
     "summary": "A payment provider for running fake payment flows for pagarme.",
-    "description": " ",  # Non-empty string to avoid loading the README file.
+    "author": "Odoo Community Association (OCA)",
+    "website": "https://github.com/OCA/l10n-brazil",
     "depends": ["payment"],
     "data": [
         "views/payment_pagarme_templates.xml",

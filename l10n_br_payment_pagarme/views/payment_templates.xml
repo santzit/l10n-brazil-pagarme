@@ -3,10 +3,11 @@
   <template
     id="verified_token_checkmark"
     inherit_id="payment.verified_token_checkmark"
+    priority="99"
   >
-    <xpath expr="//t[@name='payment_pagarme_hook']" position="replace">
-      <t t-if="token.provider_code=='pagarme'">
-        <span class="badge rounded-pill text-bg-warning">Pagarme Token</span>
+    <xpath expr="." position="inside">
+      <t t-if="token.provider_code == 'pagarme'">
+        <span class="badge rounded-pill text-bg-warning ms-1">Pagarme Token</span>
       </t>
     </xpath>
   </template>

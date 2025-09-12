@@ -7,35 +7,48 @@
 
 # Odoo Brazilian Localization - PagarMe Payment Provider / Localização Brasileira do Odoo - Provedor de Pagamento PagarMe
 
-Este repositório contém um módulo Odoo 16.0 OCA que implementa o provedor de pagamento PagarMe, projetado especificamente para a localização brasileira. O módulo oferece integração completa com os serviços de pagamento PagarMe, suportando as necessidades específicas do mercado brasileiro.
+Este repositório contém um módulo Odoo 16.0 OCA que implementa o provedor de pagamento
+PagarMe, projetado especificamente para a localização brasileira. O módulo oferece
+integração completa com os serviços de pagamento PagarMe, suportando as necessidades
+específicas do mercado brasileiro.
 
-This repository contains an Odoo 16.0 OCA module that implements the PagarMe payment provider, designed specifically for Brazilian localization. The module provides complete integration with PagarMe payment services, supporting the specific needs of the Brazilian market.
+This repository contains an Odoo 16.0 OCA module that implements the PagarMe payment
+provider, designed specifically for Brazilian localization. The module provides complete
+integration with PagarMe payment services, supporting the specific needs of the
+Brazilian market.
 
 ## Características Principais / Key Features
 
-O módulo `l10n_br_payment_pagarme` oferece / The `l10n_br_payment_pagarme` module provides:
+O módulo `l10n_br_payment_pagarme` oferece / The `l10n_br_payment_pagarme` module
+provides:
 
 - **Simulação de fluxo de pagamento direto** / Direct payment flow simulation
 - **Tokenização com ou sem pagamento** / Tokenization with or without payment
 - **Suporte à captura manual** / Manual capture support
 - **Reembolsos totais e parciais** / Full and partial refunds
 - **Taxas do cliente** / Customer fees
-- **Resultado de pagamento selecionável para testes** / Selectable payment outcome for testing
-- **Integração com métodos de pagamento brasileiros** / Integration with Brazilian payment methods
+- **Resultado de pagamento selecionável para testes** / Selectable payment outcome for
+  testing
+- **Integração com métodos de pagamento brasileiros** / Integration with Brazilian
+  payment methods
 - **Conformidade com regulamentações locais** / Compliance with local regulations
 
 ## :arrow_forward: **Teste o Módulo Agora! / Try the Module Now!**
 
-Experimente o módulo PagarMe em um ambiente de demonstração / Try the PagarMe module in a demo environment:
+Experimente o módulo PagarMe em um ambiente de demonstração / Try the PagarMe module in
+a demo environment:
 
-1. Clique no botão abaixo para iniciar um container no Runboat / Click the button below to start a container on Runboat:
+1. Clique no botão abaixo para iniciar um container no Runboat / Click the button below
+   to start a container on Runboat:
 
    [![Runboat](https://img.shields.io/badge/runboat-Try%20me-875A7B.png)](https://runboat.odoo-community.org/builds?repo=santzit/l10n-brazil-pagarme&target_branch=16.0)
 
-2. Aguarde até o container ficar disponível (indicador verde) / Wait until the container is available (green indicator)
+2. Aguarde até o container ficar disponível (indicador verde) / Wait until the container
+   is available (green indicator)
 3. Clique em **Live** para acessar o Odoo / Click **Live** to access Odoo
 4. Entre com `admin/admin` / Login with `admin/admin`
-5. Instale o módulo `l10n_br_payment_pagarme` e explore as funcionalidades de pagamento / Install the `l10n_br_payment_pagarme` module and explore payment functionalities
+5. Instale o módulo `l10n_br_payment_pagarme` e explore as funcionalidades de pagamento
+   / Install the `l10n_br_payment_pagarme` module and explore payment functionalities
 
 <!-- /!\ do not modify below this line -->
 
@@ -93,7 +106,8 @@ addon | version | maintainers | summary
 
 2. **Configure métodos de pagamento / Configure payment methods:**
    - Cartão de crédito / Credit card
-   - PIX (sistema de pagamento instantâneo brasileiro / Brazilian instant payment system)
+   - PIX (sistema de pagamento instantâneo brasileiro / Brazilian instant payment
+     system)
    - Boleto bancário / Bank slip
 
 ## Desenvolvimento / Development
@@ -116,9 +130,11 @@ pre-commit run --all-files
 4. Execute os testes / Run tests
 5. Submeta um pull request / Submit a pull request
 
-Por favor, siga as diretrizes de desenvolvimento da OCA e garanta que todos os testes passem antes de submeter pull requests.
+Por favor, siga as diretrizes de desenvolvimento da OCA e garanta que todos os testes
+passem antes de submeter pull requests.
 
-Please follow OCA development guidelines and ensure all tests pass before submitting pull requests.
+Please follow OCA development guidelines and ensure all tests pass before submitting
+pull requests.
 
 ## Licenças / Licenses
 
@@ -126,12 +142,20 @@ Este repositório está licenciado sob [AGPL-3.0](LICENSE).
 
 This repository is licensed under [AGPL-3.0](LICENSE).
 
-Entretanto, cada módulo pode ter uma licença totalmente diferente, desde que aderem à política da Odoo Community Association (OCA). Consulte o arquivo `__manifest__.py` de cada módulo, que contém uma chave `license` que explica sua licença.
+Entretanto, cada módulo pode ter uma licença totalmente diferente, desde que aderem à
+política da Odoo Community Association (OCA). Consulte o arquivo `__manifest__.py` de
+cada módulo, que contém uma chave `license` que explica sua licença.
 
-However, each module can have a totally different license, as long as they adhere to Odoo Community Association (OCA) policy. Consult each module's `__manifest__.py` file, which contains a `license` key that explains its license.
+However, each module can have a totally different license, as long as they adhere to
+Odoo Community Association (OCA) policy. Consult each module's `__manifest__.py` file,
+which contains a `license` key that explains its license.
 
 ---
 
-OCA, ou a [Odoo Community Association](http://odoo-community.org/), é uma organização sem fins lucrativos cuja missão é apoiar o desenvolvimento colaborativo de recursos do Odoo e promover seu uso generalizado.
+OCA, ou a [Odoo Community Association](http://odoo-community.org/), é uma organização
+sem fins lucrativos cuja missão é apoiar o desenvolvimento colaborativo de recursos do
+Odoo e promover seu uso generalizado.
 
-OCA, or the [Odoo Community Association](http://odoo-community.org/), is a nonprofit organization whose mission is to support the collaborative development of Odoo features and promote its widespread use.
+OCA, or the [Odoo Community Association](http://odoo-community.org/), is a nonprofit
+organization whose mission is to support the collaborative development of Odoo features
+and promote its widespread use.
