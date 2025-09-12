@@ -81,22 +81,36 @@ find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.par
 
 ```bash
 # REQUIRED: Execute test workflow before committing changes (from .github/workflows/test.yml)
+# Following OCA recommendations with INCLUDE/EXCLUDE environment variables
 
-# 1. Install addons and dependencies
+# 1. Install addons and dependencies using OCA tools
+export INCLUDE="l10n_br_payment_pagarme"
+export EXCLUDE=""
 oca_install_addons
 
-# 2. Check licenses and development status
+# 2. Check licenses and development status  
 manifestoo -d . check-licenses
 manifestoo -d . check-dev-status --default-dev-status=Beta
 
 # 3. Initialize test database
+export INCLUDE="l10n_br_payment_pagarme" 
+export EXCLUDE=""
 oca_init_test_database
 
-# 4. Run tests
+# 4. Run tests for l10n_br_payment_pagarme only
+export INCLUDE="l10n_br_payment_pagarme"
+export EXCLUDE=""
 oca_run_tests
 
 # Alternative: If OCA tools not available locally, validate basic syntax and structure:
 find . -name "*.py" -exec python -m py_compile {} \;
+
+# NOTE: Pre-commit and OCA Tools
+# OCA Docker images do NOT include pre-commit tools (oca_run_precommit does not exist)
+# Pre-commit validation must be run separately using the standard pre-commit toolchain:
+#   pip install pre-commit && pre-commit install && pre-commit run --all-files
+# OCA tools focus on addon testing, dependency management, and database operations
+# For comprehensive validation, use both OCA tools AND pre-commit hooks
 
 # CRITICAL: XML view validation to prevent test failures
 find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: XML syntax OK')" \;
@@ -180,6 +194,32 @@ for root, dirs, files in os.walk('l10n_br_payment_pagarme'):
 
 ## Working Effectively
 
+### OCA Environment Variables for Module Selection
+
+**CRITICAL: Use INCLUDE/EXCLUDE environment variables with OCA tools as per OCA recommendations**
+
+```bash
+# OCA Standard Practice - Module Selection Environment Variables
+export INCLUDE="l10n_br_payment_pagarme"  # Target specific module for testing/installation
+export EXCLUDE=""                         # Exclude specific modules (empty for single-module repo)
+
+# These variables are used by:
+# - oca_install_addons    (install only specified modules and dependencies)
+# - oca_init_test_database (initialize DB for specified modules)  
+# - oca_run_tests         (run tests only for specified modules)
+
+# Benefits:
+# 1. Faster CI execution - installs/tests only target module
+# 2. Cleaner test isolation - avoids unnecessary module interactions
+# 3. OCA compliance - follows official OCA testing recommendations
+# 4. Resource efficiency - reduces memory and CPU usage in CI
+
+# Usage Pattern:
+export INCLUDE="l10n_br_payment_pagarme"
+export EXCLUDE=""
+oca_install_addons && oca_init_test_database && oca_run_tests
+```
+
 ### Quick Setup Commands - Execute These on Fresh Clone
 
 ```bash
@@ -212,7 +252,8 @@ npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}" --ignore-unknown  # Fi
 
 # OCA addon installation using Docker (5+ minutes - NEVER CANCEL)
 # Set timeout to 10+ minutes in automation
-docker run --rm -v $(pwd):/opt/odoo/addons/custom ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest bash -c "cd /opt/odoo/addons/custom && ADDON_DIRS='.' oca_install_addons"
+# Following OCA recommendation with INCLUDE/EXCLUDE environment variables
+docker run --rm -v $(pwd):/opt/odoo/addons/custom ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest bash -c "cd /opt/odoo/addons/custom && export INCLUDE='l10n_br_payment_pagarme' && export EXCLUDE='' && oca_install_addons"
 
 # Module validation with manifestoo (immediate)
 pip install manifestoo                            # 3 seconds - one time setup
@@ -226,6 +267,10 @@ manifestoo -d . list                             # Lists: l10n_br_payment_pagarm
 ```bash
 # Local OCA testing approach (REQUIRES DATABASE):
 # The following commands need PostgreSQL running but work in CI environment:
+# Following OCA recommendation with INCLUDE/EXCLUDE environment variables
+
+# export INCLUDE="l10n_br_payment_pagarme"    
+# export EXCLUDE=""
 # oca_init_test_database    # Initialize test database (requires postgres)
 # oca_run_tests            # Run module tests (requires database)
 
@@ -568,6 +613,9 @@ The repository uses OCA testing infrastructure as defined in
 ```bash
 # Tests are run automatically using OCA CI containers
 # Commands from test.yml workflow:
+# Following OCA recommendation with INCLUDE/EXCLUDE environment variables
+export INCLUDE="l10n_br_payment_pagarme"
+export EXCLUDE=""
 oca_install_addons       # Install dependencies
 oca_init_test_database   # Initialize test database
 oca_run_tests           # Run all tests
@@ -575,7 +623,7 @@ oca_run_tests           # Run all tests
 # For local development with Docker:
 docker run --rm -v $(pwd):/opt/odoo/addons/custom \
   ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest \
-  oca_run_tests
+  bash -c "export INCLUDE='l10n_br_payment_pagarme' && export EXCLUDE='' && oca_run_tests"
 ```
 
 ### 4. Brazilian Market Specifics
@@ -928,7 +976,7 @@ The repository uses GitHub Actions workflows defined in `.github/workflows/`:
 
 - **OCA CI containers**: Uses official OCA testing infrastructure
 - **Database**: PostgreSQL 14.0 with Odoo and OCB testing
-- **Commands**: `oca_install_addons`, `oca_init_test_database`, `oca_run_tests`
+- **Commands**: `oca_install_addons`, `oca_init_test_database`, `oca_run_tests` (with INCLUDE/EXCLUDE env vars)
 - **Quality checks**: License validation, development status checks
 - **Coverage**: Codecov integration for test coverage reporting
 
@@ -936,9 +984,10 @@ The repository uses GitHub Actions workflows defined in `.github/workflows/`:
 
 ```bash
 # Use the same OCA containers as CI
+# Following OCA recommendation with INCLUDE/EXCLUDE environment variables
 docker run --rm -v $(pwd):/opt/odoo/addons/custom \
   ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest \
-  oca_run_tests
+  bash -c "export INCLUDE='l10n_br_payment_pagarme' && export EXCLUDE='' && oca_run_tests"
 
 # Check module compliance (as per test.yml)
 manifestoo -d . check-licenses
@@ -1083,6 +1132,9 @@ python -m ruff check --fix .             # Fix Python linting issues
 npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}"  # Fix XML/JS formatting
 
 # Testing (following .github/workflows/test.yml patterns)
+# Following OCA recommendation with INCLUDE/EXCLUDE environment variables
+export INCLUDE="l10n_br_payment_pagarme"
+export EXCLUDE=""
 oca_install_addons
 oca_init_test_database
 oca_run_tests
