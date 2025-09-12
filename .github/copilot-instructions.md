@@ -1072,8 +1072,8 @@ docker compose -f docker-compose-oca-test.yml up -d postgres
 # Step 2: Install addons with INCLUDE/EXCLUDE using Docker Compose run
 docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_install_addons"
 
-# Step 3: Test PostgreSQL connectivity (MANDATORY after oca_install_addons)
-docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "timeout 30 bash -c 'until pg_isready -h postgres -p 5432 -U odoo; do echo \"Waiting for PostgreSQL...\"; sleep 2; done'"
+# Step 3: Test PostgreSQL connectivity using Docker (MANDATORY after oca_install_addons)
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "echo 'Testing PostgreSQL connectivity...' && timeout 30 bash -c 'until pg_isready -h postgres -p 5432 -U odoo; do echo \"Waiting for PostgreSQL...\"; sleep 2; done' && echo 'PostgreSQL connection verified ✅'"
 
 # Step 4: Initialize database
 docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_init_test_database"
