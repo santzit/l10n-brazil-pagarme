@@ -5,6 +5,7 @@
 This is an **ODOO 16.0 OCA (Odoo Community Association) repository** for **Brazilian localization modules**, with a focus on payment providers and Brazilian market requirements.
 
 **Key Context:**
+
 - **Purpose**: Brazilian localization modules for Odoo, including payment providers and market-specific features
 - **Odoo Version**: 16.0 (follow version-specific patterns and APIs)
 - **OCA Compliance**: Strict adherence to OCA standards for community modules
@@ -36,17 +37,19 @@ l10n_br_module_name/              # Module directory (l10n_br_* pattern)
 ### 1. ODOO OCA Standards Compliance
 
 #### Module Structure
+
 - **ALWAYS** follow the OCA module structure pattern
 - **REQUIRED**: Each module must have `__manifest__.py` with proper OCA metadata
 - **REQUIRED**: Include `__init__.py` files in all Python directories
 - Use descriptive names following OCA naming conventions (`l10n_br_*` for Brazilian localization)
 
 #### Manifest File Requirements
+
 ```python
 {
     "name": "Descriptive Module Name",
     "version": "16.0.x.y.z",  # Follow OCA versioning
-    "category": "Appropriate Category", 
+    "category": "Appropriate Category",
     "summary": "Brief module description",
     "depends": ["base", "required_modules"],  # Core dependencies
     "data": [
@@ -63,6 +66,7 @@ l10n_br_module_name/              # Module directory (l10n_br_* pattern)
 ### 2. Python Development Standards
 
 #### Code Style and Formatting Requirements
+
 - Follow **PEP 8** and **OCA Python guidelines**
 - **MANDATORY**: Use **double quotes** for all strings (enforced by ruff)
 - **MANDATORY**: Use explicit re-exports in `__init__.py` files to avoid F401 errors
@@ -71,6 +75,7 @@ l10n_br_module_name/              # Module directory (l10n_br_* pattern)
 - **ALWAYS** run `pre-commit run --all-files` before committing
 
 #### Critical Formatting Rules
+
 ```python
 # ✅ CORRECT - Double quotes (REQUIRED)
 from odoo import _, api, fields, models
@@ -89,6 +94,7 @@ from . import controllers
 ```
 
 #### Model Development Patterns
+
 ```python
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
@@ -97,17 +103,17 @@ class ModelName(models.Model):
     _inherit = "existing.model"  # For extending existing models (double quotes!)
     # OR
     _name = "new.model.name"     # For new models (double quotes!)
-    
+
     # Field definitions with proper types and attributes (double quotes!)
     field_name = fields.Char("Field Label", required=True)
-    
+
     # Methods with proper decorators and documentation
     @api.depends("field_name")  # Double quotes!
     def _compute_something(self):
         """Compute method documentation."""
         for record in self:
             record.computed_field = self._calculate_value()
-    
+
     @api.constrains("field_name")  # Double quotes!
     def _check_field_name(self):
         """Validation method documentation."""
@@ -116,6 +122,7 @@ class ModelName(models.Model):
 ```
 
 #### Brazilian Localization Patterns
+
 - **Module naming**: Use `l10n_br_*` pattern for Brazilian localization
 - **Document handling**: Consider CPF/CNPJ validation when dealing with customer data
 - **Currency**: Default to BRL (Brazilian Real) when applicable
@@ -125,22 +132,24 @@ class ModelName(models.Model):
 ### 3. Testing Framework
 
 #### Test Structure
+
 - Place all tests in `tests/` directory
 - Use OCA testing base classes and patterns
 - Follow the testing approach defined in `.github/workflows/test.yml`
 
 #### Testing Patterns
+
 ```python
 from odoo.tests import tagged, TransactionCase
 from odoo.tests.common import HttpCase
 
 @tagged("-at_install", "post_install")  # Standard OCA test tagging
 class TestModuleFunctionality(TransactionCase):
-    
+
     def setUp(self):
         super().setUp()
         # Test setup code
-    
+
     def test_functionality(self):
         """Test method documentation."""
         # Test implementation
@@ -148,6 +157,7 @@ class TestModuleFunctionality(TransactionCase):
 ```
 
 #### Running Tests
+
 The repository uses OCA testing infrastructure as defined in `.github/workflows/test.yml`:
 
 ```bash
@@ -166,6 +176,7 @@ docker run --rm -v $(pwd):/opt/odoo/addons/custom \
 ### 4. Brazilian Market Specifics
 
 #### Payment Provider Development
+
 - Support Brazilian payment methods and regulations
 - Implement proper document validation (CPF/CNPJ)
 - Handle installment payments common in Brazilian market
@@ -173,6 +184,7 @@ docker run --rm -v $(pwd):/opt/odoo/addons/custom \
 - Follow Brazilian Central Bank regulations
 
 #### Localization Requirements
+
 - Brazilian tax system integration
 - State and municipal tax handling
 - SPED (Sistema Público de Escrituração Digital) compliance
@@ -182,12 +194,13 @@ docker run --rm -v $(pwd):/opt/odoo/addons/custom \
 ### 5. Advanced Integration
 
 #### Controller Development
+
 ```python
 from odoo import http
 from odoo.http import request
 
 class BrazilianController(http.Controller):
-    
+
     @http.route("/brazilian/endpoint", type="json", auth="public", csrf=False)
     def endpoint_handler(self, **kwargs):
         """Handle Brazilian-specific requests."""
@@ -196,6 +209,7 @@ class BrazilianController(http.Controller):
 ```
 
 #### Playwright Testing Integration
+
 For browser automation testing, integrate with Odoo's testing framework:
 
 ```python
@@ -203,7 +217,7 @@ from odoo.tests import HttpCase, tagged
 
 @tagged("post_install", "-at_install")
 class TestUIFunctionality(HttpCase):
-    
+
     def test_user_interface(self):
         """Test UI functionality with Playwright patterns."""
         # Use Playwright for browser automation
@@ -218,6 +232,7 @@ Follow the testing patterns established in `.github/workflows/test.yml` for cons
 The repository includes comprehensive pre-commit hooks for code quality that **MUST** be followed to prevent CI failures:
 
 #### Available Hooks
+
 - **OCA-specific**: Module validation, manifest checks, README generation
 - **Code formatting**: Ruff for Python, Prettier for XML/JS
 - **Code quality**: PyLint with Odoo extensions
@@ -226,18 +241,21 @@ The repository includes comprehensive pre-commit hooks for code quality that **M
 #### Critical Pre-commit Error Prevention Guidelines
 
 ##### Python Code Formatting (Ruff)
+
 **ALWAYS use double quotes** - Ruff enforces double quote usage:
+
 ```python
 # ✅ CORRECT - Use double quotes
 setup_provider(cr, registry, "pagarme")
 field_name = fields.Char("Field Label", required=True)
 
 # ❌ WRONG - Single quotes will cause pre-commit failures
-setup_provider(cr, registry, 'pagarme') 
+setup_provider(cr, registry, 'pagarme')
 field_name = fields.Char('Field Label', required=True)
 ```
 
 **Import Best Practices** - Avoid F401 "imported but unused" errors:
+
 ```python
 # ✅ CORRECT - Explicit re-exports in __init__.py files
 from . import controllers as controllers
@@ -249,11 +267,12 @@ from . import models
 ```
 
 **Method and Class Formatting**:
+
 ```python
 # ✅ CORRECT - Proper spacing and formatting
 class PaymentProvider(models.Model):
     _inherit = "payment.provider"
-    
+
     def _compute_something(self):
         """Compute method documentation."""
         for record in self:
@@ -268,7 +287,9 @@ class PaymentProvider(models.Model):
 ```
 
 ##### XML Formatting (Prettier)
+
 **Consistent indentation and formatting**:
+
 ```xml
 <!-- ✅ CORRECT - Proper XML formatting -->
 <?xml version="1.0" encoding="utf-8" ?>
@@ -290,22 +311,31 @@ class PaymentProvider(models.Model):
 ```
 
 ##### JavaScript Formatting
+
 **Quote consistency and proper formatting**:
+
 ```javascript
 // ✅ CORRECT - Double quotes and proper formatting
 const paymentForm = {
-    selector: ".payment-form",
-    init: function() {
-        this.setupEventHandlers();
-    },
+  selector: ".payment-form",
+  init: function () {
+    this.setupEventHandlers();
+  },
 };
 
 // ❌ WRONG - Mixed quotes and poor formatting
-const paymentForm={selector:'.payment-form',init:function(){this.setupEventHandlers()}}
+const paymentForm = {
+  selector: ".payment-form",
+  init: function () {
+    this.setupEventHandlers();
+  },
+};
 ```
 
 ##### File Requirements
+
 **ALWAYS ensure files end with a newline**:
+
 ```python
 # ✅ CORRECT - File ends with newline
 def my_function():
@@ -319,6 +349,7 @@ def my_function():
 #### Mandatory Pre-commit Workflow
 
 **BEFORE making any code changes:**
+
 ```bash
 # Install and setup pre-commit (REQUIRED)
 pip install pre-commit
@@ -329,6 +360,7 @@ pre-commit run --all-files
 ```
 
 **AFTER making any code changes:**
+
 ```bash
 # ALWAYS run pre-commit before committing
 pre-commit run --all-files
@@ -340,7 +372,7 @@ pre-commit run --all-files
 python -m ruff format .
 python -m ruff check --fix .
 
-# Fix XML/JS formatting automatically  
+# Fix XML/JS formatting automatically
 npx prettier --write "**/*.{xml,js,css,json}"
 
 # Check for trailing whitespace and missing newlines
@@ -349,18 +381,20 @@ git diff --check
 
 #### Common Pre-commit Errors and Solutions
 
-| Error Type | Description | Solution |
-|------------|-------------|----------|
-| **Ruff format** | Single quotes used | Change all single quotes to double quotes |
-| **F401 imported but unused** | Import not explicitly re-exported | Use `from . import module as module` |
-| **end-of-file-fixer** | Missing newline at end | Add newline at end of file |
-| **trailing-whitespace** | Spaces at end of lines | Remove trailing spaces |
-| **prettier** | XML/JS formatting issues | Run `npx prettier --write` on affected files |
-| **check-xml** | Invalid XML syntax | Fix XML syntax errors |
-| **oca-checks-odoo-module** | OCA module compliance | Fix manifest, structure, or naming issues |
+| Error Type                   | Description                       | Solution                                     |
+| ---------------------------- | --------------------------------- | -------------------------------------------- |
+| **Ruff format**              | Single quotes used                | Change all single quotes to double quotes    |
+| **F401 imported but unused** | Import not explicitly re-exported | Use `from . import module as module`         |
+| **end-of-file-fixer**        | Missing newline at end            | Add newline at end of file                   |
+| **trailing-whitespace**      | Spaces at end of lines            | Remove trailing spaces                       |
+| **prettier**                 | XML/JS formatting issues          | Run `npx prettier --write` on affected files |
+| **check-xml**                | Invalid XML syntax                | Fix XML syntax errors                        |
+| **oca-checks-odoo-module**   | OCA module compliance             | Fix manifest, structure, or naming issues    |
 
 #### Error Prevention Checklist
+
 Before submitting any changes, ensure:
+
 - [ ] All Python strings use double quotes
 - [ ] All `__init__.py` files use explicit re-exports (`as module`)
 - [ ] All files end with a single newline
@@ -371,6 +405,7 @@ Before submitting any changes, ensure:
 - [ ] No ruff, prettier, or OCA validation errors
 
 #### Usage
+
 ```bash
 # Essential pre-commit setup (REQUIRED for all contributions)
 pip install pre-commit
@@ -385,11 +420,78 @@ python -m ruff check --fix .
 npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}"
 ```
 
+#### Network Issues and Alternative Validation
+
+If pre-commit encounters network issues during installation, use these alternative validation methods:
+
+```bash
+# Install core tools directly
+pip install ruff
+npm install prettier @prettier/plugin-xml
+
+# Manual validation commands
+ruff check --fix .                    # Python linting
+ruff format .                         # Python formatting
+npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}" --ignore-unknown
+
+# Check Python syntax compilation
+find . -name "*.py" -exec python -m py_compile {} \;
+
+# Check XML syntax with Python
+find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;
+
+# Check for trailing whitespace
+find . -name "*.py" -exec grep -l "[[:space:]]$" {} \;
+
+# Check for missing newlines at end of files
+find . -name "*.py" -exec sh -c 'if [ "$(tail -c1 "$1")" != "" ]; then echo "$1"; fi' _ {} \;
+```
+
+#### OCA README Standards
+
+When updating README.md files, follow OCA standards:
+
+- **Include badges**: Runboat, Pre-commit Status, Build Status, codecov, Translation Status
+- **Bilingual content**: Portuguese and English for Brazilian localization
+- **Proper sections**: Features, Installation, Configuration, Development, Contributing
+- **OCA footer**: Include OCA mission statement
+- **Runboat integration**: Provide "Try it now" section with working Runboat links
+- **Module table**: Use auto-generated addons table format
+
+Example OCA-compliant README structure:
+```markdown
+[![Runboat](https://img.shields.io/badge/runboat-Try%20me-875A7B.png)](https://runboat.odoo-community.org/builds?repo=org/repo&target_branch=16.0)
+[![Pre-commit Status](https://github.com/org/repo/actions/workflows/pre-commit.yml/badge.svg?branch=16.0)](https://github.com/org/repo/actions/workflows/pre-commit.yml?query=branch%3A16.0)
+
+<!-- /!\ do not modify above this line -->
+
+# Title in English and Portuguese
+
+Description in both languages...
+
+## Features / Características
+
+Bilingual feature list...
+
+## :arrow_forward: **Try it now! / Teste agora!**
+
+Runboat instructions...
+
+<!-- /!\ do not modify below this line -->
+[//]: # (addons)
+[//]: # (end addons)
+
+## License / Licença
+
+OCA footer...
+```
+
 ### 7. Continuous Integration
 
 The repository uses GitHub Actions workflows defined in `.github/workflows/`:
 
 #### Test Workflow (test.yml)
+
 - **OCA CI containers**: Uses official OCA testing infrastructure
 - **Database**: PostgreSQL 14.0 with Odoo and OCB testing
 - **Commands**: `oca_install_addons`, `oca_init_test_database`, `oca_run_tests`
@@ -397,6 +499,7 @@ The repository uses GitHub Actions workflows defined in `.github/workflows/`:
 - **Coverage**: Codecov integration for test coverage reporting
 
 #### Local Testing
+
 ```bash
 # Use the same OCA containers as CI
 docker run --rm -v $(pwd):/opt/odoo/addons/custom \
@@ -411,6 +514,7 @@ manifestoo -d . check-dev-status --default-dev-status=Beta
 ### 8. Development Workflow
 
 #### New Module Development
+
 1. **Create module directory**: Follow `l10n_br_*` naming pattern
 2. **Structure module**: Use OCA-compliant directory structure
 3. **Implement functionality**: Follow Brazilian localization patterns
@@ -419,6 +523,7 @@ manifestoo -d . check-dev-status --default-dev-status=Beta
 6. **Update manifest**: Proper versioning and metadata
 
 #### Bug Fixes and Improvements
+
 1. **Identify issue**: Check existing functionality and tests
 2. **Create tests**: Add tests that reproduce the issue
 3. **Implement fix**: Minimal changes following OCA patterns
@@ -428,16 +533,19 @@ manifestoo -d . check-dev-status --default-dev-status=Beta
 ### 9. OCA Specific Guidelines
 
 #### Dependencies Management
+
 - **Odoo dependencies**: List in `depends` field of manifest
 - **External dependencies**: Document in `external_dependencies` if needed
 - **Version compatibility**: Ensure Odoo 16.0 compatibility
 
 #### Translation Support
+
 - Use Odoo's translation system: `_("Translatable string")`
 - Generate .pot files using OCA tools
 - Support Portuguese (Brazil) as primary language
 
 #### Documentation Standards
+
 - Keep module descriptions clear and concise
 - Add comprehensive docstrings to methods
 - Follow OCA documentation guidelines
@@ -445,11 +553,13 @@ manifestoo -d . check-dev-status --default-dev-status=Beta
 ### 10. Best Practices
 
 #### Code Organization
+
 - **Logical separation**: One model per file when possible
 - **Proper inheritance**: Use `_inherit` for extensions, `_name` for new models
 - **Security**: Implement proper access controls in `security/` directory
 
 #### Error Handling
+
 ```python
 from odoo.exceptions import UserError, ValidationError
 
@@ -461,19 +571,21 @@ raise ValidationError(_("Validation failed: specific reason"))
 ```
 
 #### Logging
+
 ```python
 import logging
 _logger = logging.getLogger(__name__)
 
 # Appropriate log levels
 _logger.info("Information message")
-_logger.warning("Warning message") 
+_logger.warning("Warning message")
 _logger.error("Error message: %s", error_details)
 ```
 
 ## Quick Reference
 
 ### Setup and Development
+
 ```bash
 # Clone and setup repository
 git clone https://github.com/santzit/l10n-brazil-pagarme.git
@@ -494,7 +606,7 @@ npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}"  # Fix XML/JS formatti
 
 # Testing (following .github/workflows/test.yml patterns)
 oca_install_addons
-oca_init_test_database  
+oca_init_test_database
 oca_run_tests
 
 # Module validation
@@ -503,6 +615,7 @@ manifestoo -d . check-dev-status --default-dev-status=Beta
 ```
 
 ### Development Checklist
+
 - [ ] Follow `l10n_br_*` naming convention for Brazilian modules
 - [ ] Implement proper `__manifest__.py` with OCA metadata using **double quotes**
 - [ ] Add models in `models/` directory with proper inheritance using **double quotes**
@@ -514,13 +627,19 @@ manifestoo -d . check-dev-status --default-dev-status=Beta
 - [ ] Ensure all files end with a single newline
 - [ ] Remove all trailing whitespace from files
 - [ ] Follow Brazilian localization requirements
+- [ ] **README.md**: Follow OCA standards with badges, bilingual content, and proper structure
+- [ ] **README.md**: Include Runboat links, installation instructions, and OCA footer
+- [ ] **README.md**: Use auto-generated addons table format with proper comments
 - [ ] **MANDATORY**: Run pre-commit hooks and ensure ALL checks pass: `pre-commit run --all-files`
 - [ ] **MANDATORY**: Fix any ruff formatting errors (especially quote standardization)
 - [ ] **MANDATORY**: Fix any prettier formatting errors for XML/JS files
+- [ ] **MANDATORY**: Validate Python syntax compilation: `find . -name "*.py" -exec python -m py_compile {} \;`
+- [ ] **MANDATORY**: Validate XML syntax: `find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;`
 - [ ] Test with OCA infrastructure using `oca_run_tests`
 - [ ] Validate module compliance with manifestoo tools
 
 ### Environment Requirements
+
 - **Python**: 3.10 (as per OCA CI configuration)
 - **Odoo**: 16.0 compatibility required
 - **Database**: PostgreSQL 14.0+ for testing
