@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo noupdate="1">
   <record id="payment_provider_pagarme" model="payment.provider">
+    <field name="name">Pagarme</field>
     <field name="code">pagarme</field>
     <field name="inline_form_view_id" ref="l10n_br_payment_pagarme.inline_form" />
     <field

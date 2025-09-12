@@ -1,21 +1,168 @@
-# Copilot Instructions for l10n-brazil-pagarme
+# GitHub Copilot Instructions for l10n-brazil-pagarme
+
+**ALWAYS reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.**
+
+This is an **Odoo 16.0 OCA (Odoo Community Association) module repository** for **Brazilian localization payment providers**. The primary module `l10n_br_payment_pagarme` implements PagarMe payment provider integration with Brazilian market-specific features.
 
 ## 🚨 MANDATORY COPILOT FIREWALL RULES 🚨
 
-**THESE RULES MUST BE FOLLOWED WITHOUT EXCEPTION - NO CODE CHANGES ARE ALLOWED WITHOUT
-COMPLIANCE**
+**THESE RULES MUST BE FOLLOWED WITHOUT EXCEPTION - NO CODE CHANGES ARE ALLOWED WITHOUT COMPLIANCE**
 
-### Rule 1: Pre-commit Execution is MANDATORY
+### Rule 1: MANDATORY Validation Before ANY Commit
+
+**CRITICAL: pre-commit AND GitHub Actions CI MUST pass before ANY commit**
+
+Following the OCA l10n-brazil test.yml reference workflow, these validation steps are MANDATORY:
 
 ```bash
-# ABSOLUTE REQUIREMENT: Execute these commands after EVERY code change
+# STEP 1: MANDATORY pre-commit validation (MUST PASS)
+# TIMING: 40 seconds for full validation - NEVER CANCEL
 pre-commit run --all-files
 
-# If pre-commit fails due to network issues, use alternative validation:
-python -m ruff format .
-python -m ruff check --fix .
-npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}"
-find . -name "*.py" -exec python -m py_compile {} \;
+# STEP 2: MANDATORY Local OCA Testing (MUST PASS)
+# Uses Docker Compose approach to mirror GitHub Actions container + services setup
+# TIMING: 10-15 minutes for full OCA validation - NEVER CANCEL
+
+# GitHub Actions runs these separated steps automatically:
+# - Step 1: oca_install_addons
+# - Step 2: manifestoo -d . check-licenses  
+# - Step 3: manifestoo -d . check-dev-status --default-dev-status=Beta
+# - Step 4: oca_init_test_database
+# - Step 5: oca_run_tests
+
+# All steps use INCLUDE/EXCLUDE environment variables:
+export INCLUDE="l10n_br_payment_pagarme"
+export EXCLUDE=""
+```
+
+**COMMIT ENFORCEMENT RULES:**
+- **NO COMMITS** are allowed unless BOTH pre-commit AND local OCA Docker testing pass completely
+- **NO ALTERNATIVE SOLUTIONS** are permitted - both validations are mandatory  
+- **NO EXCEPTIONS** - if any validation fails, the commit MUST NOT proceed
+- **ERROR REPORTING** - if validation fails, report the specific error and stop the process
+- **PostgreSQL CONNECTIVITY** - MUST test database connection using Docker after oca_install_addons
+- **SEPARATED STEPS** - Follow GitHub Actions pattern: install → connection test → init database → run tests
+
+**ENFORCEMENT SEQUENCE:**
+1. Execute `pre-commit run --all-files` - MUST PASS
+2. Execute Docker-based OCA testing sequence (oca_install_addons → PostgreSQL connection test → oca_init_test_database → oca_run_tests) - MUST PASS
+3. Only proceed with commit if BOTH validations pass
+4. If any step fails: STOP, report error in comment, do NOT commit
+5. Optional: Push changes to verify GitHub Actions CI also passes
+
+**LOCAL OCA TESTING WITH DOCKER COMPOSE**
+- GitHub Actions uses `container:` + `services:` approach - replicate locally with Docker Compose
+- **MANDATORY**: Use Docker Compose for local OCA testing that mirrors GitHub Actions setup
+- **SEPARATED STEPS**: Follow exact GitHub Actions pattern with individual Docker commands
+- **CONNECTION TESTING**: Always test PostgreSQL connectivity using Docker after `oca_install_addons`
+
+**Docker Compose Setup for Local Testing:**
+```yaml
+# docker-compose-oca-test.yml (create temporarily for testing)
+version: '3.8'
+services:
+  postgres:
+    image: postgres:14.0
+    environment:
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
+      POSTGRES_DB: odoo
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - oca-network
+
+  oca-ci:
+    image: ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/opt/odoo/addons/custom
+    working_dir: /opt/odoo/addons/custom
+    environment:
+      - INCLUDE=l10n_br_payment_pagarme
+      - EXCLUDE=
+      - PGHOST=postgres
+      - PGUSER=odoo
+      - PGPASSWORD=odoo
+      - PGDATABASE=odoo
+    networks:
+      - oca-network
+
+networks:
+  oca-network:
+    driver: bridge
+```
+
+**MANDATORY Local OCA Testing Sequence (Rule 1):**
+```bash
+# Step 1: Create Docker Compose file and start PostgreSQL
+cat > docker-compose-oca-test.yml << 'EOF'
+version: '3.8'
+services:
+  postgres:
+    image: postgres:14.0
+    environment:
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
+      POSTGRES_DB: odoo
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - oca-network
+
+  oca-ci:
+    image: ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/opt/odoo/addons/custom
+    working_dir: /opt/odoo/addons/custom
+    environment:
+      - INCLUDE=l10n_br_payment_pagarme
+      - EXCLUDE=
+      - PGHOST=postgres
+      - PGUSER=odoo
+      - PGPASSWORD=odoo
+      - PGDATABASE=odoo
+    networks:
+      - oca-network
+
+networks:
+  oca-network:
+    driver: bridge
+EOF
+
+# Step 2: Start PostgreSQL service
+docker compose -f docker-compose-oca-test.yml up -d postgres
+
+# Step 3: Install addons using Docker Compose run
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_install_addons"
+
+# Step 4: Test PostgreSQL connectivity using Docker (MANDATORY after oca_install_addons)
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "echo 'Testing PostgreSQL connectivity...' && timeout 30 bash -c 'until pg_isready -h postgres -p 5432 -U odoo; do echo \"Waiting for PostgreSQL...\"; sleep 2; done' && echo 'PostgreSQL connection verified ✅'"
+
+# Step 5: Initialize test database using Docker Compose
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_init_test_database"
+
+# Step 6: Run tests using Docker Compose  
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_run_tests"
+
+# Step 7: Cleanup
+docker compose -f docker-compose-oca-test.yml down
+rm docker-compose-oca-test.yml
 ```
 
 ### Rule 2: Zero Tolerance for Formatting Violations
@@ -28,36 +175,7 @@ find . -name "*.py" -exec python -m py_compile {} \;
 - **XML/JS**: MUST pass prettier formatting validation
 - **Docstrings**: Break long docstrings across multiple lines to stay under 88 chars
 
-### Rule 3: Validation Before ANY Code Submission
-
-```bash
-# MANDATORY pre-submission checklist execution:
-pre-commit run --all-files                    # Primary validation
-python -m ruff format . && python -m ruff check --fix .    # Python validation
-npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}"  # Format validation
-find . -name "*.py" -exec python -m py_compile {} \;       # Syntax validation
-```
-
-### Rule 4: Emergency Protocols for Network Issues
-
-When pre-commit installation fails due to network issues, execute these commands
-immediately:
-
-```bash
-# Install tools directly if pre-commit network fails
-pip install ruff
-npm install prettier @prettier/plugin-xml
-
-# Execute manual validation (substitute for pre-commit)
-ruff check --fix . && ruff format .
-npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}" --ignore-unknown
-find . -name "*.py" -exec python -m py_compile {} \;
-find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;
-```
-
-**FAILURE TO COMPLY WITH THESE FIREWALL RULES WILL RESULT IN CI PIPELINE FAILURES**
-
-### Rule 5: File Modification Restrictions
+### Rule 3: File Modification Restrictions
 
 **CRITICAL: Root and GitHub directory protection rules - NO EXCEPTIONS**
 
@@ -71,158 +189,188 @@ find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.par
 - **EXCEPTION**: The `.github/copilot-instructions.md` file can be modified when
   updating documentation
 
-### Rule 6: Testing Requirements Before Commits
+---
 
-**MANDATORY: Run tests before any code changes are committed**
+## Working Effectively
+
+### Quick Setup Commands - Execute These on Fresh Clone
 
 ```bash
-# REQUIRED: Execute test workflow before committing changes (from .github/workflows/test.yml)
+# STEP 1: Install development tools (4 seconds)
+pip install pre-commit
+pre-commit install
 
-# 1. Install addons and dependencies
-oca_install_addons
-
-# 2. Check licenses and development status
-manifestoo -d . check-licenses
-manifestoo -d . check-dev-status --default-dev-status=Beta
-
-# 3. Initialize test database
-oca_init_test_database
-
-# 4. Run tests
-oca_run_tests
-
-# Alternative: If OCA tools not available locally, validate basic syntax and structure:
-find . -name "*.py" -exec python -m py_compile {} \;
-
-# CRITICAL: XML view validation to prevent test failures
-find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: XML syntax OK')" \;
-
-# CRITICAL: Data XML validation to prevent record reference errors
-python -c "
-import os
-import xml.etree.ElementTree as ET
-
-def validate_data_xml_references():
-    '''Validate XML data files for proper record references and external IDs'''
-    for root, dirs, files in os.walk('.'):
-        if 'data' in dirs:
-            data_path = os.path.join(root, 'data')
-            xml_files = [f for f in os.listdir(data_path) if f.endswith('.xml')]
-            for xml_file in xml_files:
-                xml_path = os.path.join(data_path, xml_file)
-                try:
-                    tree = ET.parse(xml_path)
-                    root_elem = tree.getroot()
-
-                    # Check for records with problematic external IDs
-                    for record in root_elem.findall('.//record'):
-                        record_id = record.get('id', '')
-
-                        # Check for cross-module references without proper prefixing
-                        if '.' in record_id and not record_id.startswith('l10n_br_payment_pagarme.'):
-                            print(f'WARNING: {xml_file} - Record id=\"{record_id}\" may reference external module incorrectly')
-
-                        # Check field references (ref attributes)
-                        for field in record.findall('field[@ref]'):
-                            ref_value = field.get('ref', '')
-                            field_name = field.get('name', '')
-
-                            # Check if referencing views that should be module-prefixed
-                            if ref_value in ['inline_form', 'token_inline_form'] and not ref_value.startswith('l10n_br_payment_pagarme.'):
-                                print(f'ERROR: {xml_file} - Field {field_name} references \"{ref_value}\" without module prefix. Should be \"l10n_br_payment_pagarme.{ref_value}\"')
-                                return False
-
-                            # Check for other unqualified references that might be internal
-                            if '.' not in ref_value and ref_value not in ['True', 'False'] and not ref_value.isdigit():
-                                print(f'WARNING: {xml_file} - Field {field_name} references \"{ref_value}\" - ensure this external ID exists or is properly qualified')
-
-                    print(f'{xml_file}: Data XML validation OK')
-                except ET.ParseError as e:
-                    print(f'ERROR: {xml_file} - XML parsing failed: {e}')
-                    return False
-                except Exception as e:
-                    print(f'ERROR: {xml_file} - Validation failed: {e}')
-                    return False
-    return True
-
-# Run validation
-if not validate_data_xml_references():
-    print('Data XML validation FAILED - fix errors before committing')
-    exit(1)
-else:
-    print('All data XML files validated successfully')
-"
-
-# IMPORTANT: Basic module structure validation
-python -c "
-import os
-for root, dirs, files in os.walk('l10n_br_payment_pagarme'):
-    if 'views' in dirs:
-        views_path = os.path.join(root, 'views')
-        xml_files = [f for f in os.listdir(views_path) if f.endswith('.xml')]
-        if xml_files:
-            print(f'Found XML views: {xml_files}')
-            # Basic check that view files don't have broken inheritance
-            for xml_file in xml_files:
-                xml_path = os.path.join(views_path, xml_file)
-                with open(xml_path, 'r') as f:
-                    content = f.read()
-                    if 'inherit_id=' in content and 'xpath' in content:
-                        print(f'WARNING: {xml_file} contains view inheritance - ensure xpath targets exist in parent view')
-"
+# STEP 2: MANDATORY quality validation (40 seconds - NEVER CANCEL)
+# Set timeout to 60+ seconds in any automation
+pre-commit run --all-files
 ```
 
----
+### OCA Environment Variables for Module Selection
+
+Following OCA l10n-brazil test.yml reference, use INCLUDE/EXCLUDE environment variables:
+
+```bash
+# OCA Standard Practice - Module Selection Environment Variables
+export INCLUDE="l10n_br_payment_pagarme"  # Target specific module for testing/installation
+export EXCLUDE=""                         # Exclude specific modules (empty for single-module repo)
+
+# Usage Pattern (following OCA l10n-brazil/test.yml):
+export INCLUDE="l10n_br_payment_pagarme"
+export EXCLUDE=""
+oca_install_addons
+oca_init_test_database
+oca_run_tests
+```
 
 ## Repository Overview
 
-This is an **ODOO 16.0 OCA (Odoo Community Association) repository** for **Brazilian
-localization modules**, with a focus on payment providers and Brazilian market
-requirements.
-
 **Key Context:**
+- **Module Type**: Single Odoo 16.0 OCA payment provider module  
+- **Main Module**: `l10n_br_payment_pagarme` - PagarMe payment integration for Brazil
+- **Dependencies**: Odoo 16.0 `payment` module (core payment framework)
+- **Testing**: Uses Odoo's TransactionCase and HttpCase frameworks  
+- **Location**: All development happens in `l10n_br_payment_pagarme/` directory
 
-- **Purpose**: Brazilian localization modules for Odoo, including payment providers and
-  market-specific features
-- **Odoo Version**: 16.0 (follow version-specific patterns and APIs)
-- **OCA Compliance**: Strict adherence to OCA standards for community modules
-- **Localization Focus**: Brazilian market requirements, regulations, and payment
-  systems
-- **Module Pattern**: `l10n_br_*` naming convention for Brazilian localization modules
+## Validation and Testing Scenarios
 
-The repository follows OCA standards and best practices for Odoo module development with
-specific focus on Brazilian market requirements.
+## Build and Test Timing Expectations
 
-## Repository Structure
+### Timing Reference (NEVER CANCEL - Wait for Completion)
 
-This repository contains Brazilian localization modules following OCA directory
-standards:
+| Operation | Expected Time | Timeout Setting | Notes |
+|-----------|---------------|-----------------|-------|
+| `pip install pre-commit` | 4 seconds | 60 seconds | Network dependent |
+| `pre-commit install` | < 1 second | 30 seconds | Local operation |
+| `pre-commit run --all-files` (first time) | 40 seconds | 90 seconds | Downloads environments |
+| `pre-commit run --all-files` (subsequent) | 10 seconds | 60 seconds | Uses cached environments |
+| PostgreSQL connectivity check | 2-5 seconds | 30 seconds | Network + service dependent |
+| `python -m ruff format .` | < 1 second | 30 seconds | Fast formatter |
+| `python -m ruff check --fix .` | < 1 second | 30 seconds | Fast linter |
+| `npx prettier --write ...` | < 1 second | 30 seconds | Fast formatter |
+| Python syntax validation | < 1 second | 30 seconds | Compilation check |
+| XML syntax validation | < 1 second | 30 seconds | Parser check |
+| OCA Docker addon install | 5+ minutes | 15 minutes | Network + Docker dependent |
+| `pip install manifestoo` | 3 seconds | 60 seconds | Network dependent |
 
+### CI Pipeline Expectations
+
+**From `.github/workflows/test.yml`:**
+- Uses `ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest` Docker container
+- Requires PostgreSQL 14.0 service  
+- Runs `oca_install_addons`, `oca_init_test_database`, `oca_run_tests`
+- **Total CI time: 10-20 minutes** (NEVER CANCEL CI workflows)
+
+## Repository Navigation and Module Structure
+
+### Current Repository Structure (Validated)
 ```
-l10n_br_module_name/              # Module directory (l10n_br_* pattern)
-├── __manifest__.py               # Module manifest (required)
-├── __init__.py                   # Module initialization
-├── controllers/                  # HTTP controllers (if needed)
-├── models/                       # Business logic models
-├── views/                        # XML view definitions
-├── data/                         # Data files and records
-├── static/                       # Static assets (JS, CSS, images)
-├── tests/                        # Unit and integration tests
-├── security/                     # Access control files
-└── i18n/                        # Translation files (auto-generated)
+l10n-brazil-pagarme/
+├── .github/                      # GitHub workflows and copilot instructions  
+│   ├── workflows/
+│   │   ├── test.yml             # OCA CI testing workflow
+│   │   └── pre-commit.yml       # Pre-commit validation workflow
+│   └── copilot-instructions.md  # This file
+├── l10n_br_payment_pagarme/     # MAIN MODULE DIRECTORY (focus here)
+│   ├── __manifest__.py          # Module metadata and dependencies
+│   ├── __init__.py              # Module initialization
+│   ├── controllers/             # HTTP controllers for payment flows
+│   │   ├── __init__.py
+│   │   └── main.py              # PaymentPagarmeController
+│   ├── models/                  # Business logic models
+│   │   ├── __init__.py
+│   │   ├── payment_provider.py  # Provider configuration  
+│   │   ├── payment_token.py     # Token management
+│   │   └── payment_transaction.py # Transaction processing
+│   ├── tests/                   # Test cases (IMPORTANT for validation)
+│   │   ├── __init__.py
+│   │   ├── common.py            # PaymentPagarmeCommon test base
+│   │   ├── test_payment_transaction.py # Transaction tests
+│   │   └── test_processing_flows.py    # Flow integration tests
+│   ├── views/                   # XML view definitions
+│   │   ├── payment_pagarme_templates.xml
+│   │   ├── payment_templates.xml
+│   │   ├── payment_token_views.xml
+│   │   └── payment_transaction_views.xml
+│   ├── data/                    # Data records
+│   │   └── payment_provider_data.xml
+│   └── static/src/js/           # Frontend JavaScript
+│       └── payment_form.js      # Payment form handling
+├── .pre-commit-config.yaml      # Pre-commit hook configuration
+├── .ruff.toml                   # Python code formatting rules
+├── .eslintrc.json               # JavaScript linting rules
+├── setup.py                     # Python package setup
+├── test-requirements.txt        # Test dependencies
+└── README.md                    # Project documentation
 ```
+
+### Key Files to Know
+
+#### Module Manifest (`l10n_br_payment_pagarme/__manifest__.py`)
+- **Purpose**: Defines module metadata, dependencies, and load order
+- **Dependencies**: `["payment"]` (Odoo core payment framework)
+- **Version**: `16.0.6.2.0` (Odoo 16.0 compatible)
+- **Data Files**: XML views, templates, and provider configuration
+
+#### Test Files (`l10n_br_payment_pagarme/tests/`)
+- **common.py**: `PaymentPagarmeCommon` - Test base class with provider setup
+- **test_payment_transaction.py**: Transaction state and processing tests  
+- **test_processing_flows.py**: End-to-end payment flow tests
+- **Tags**: `@tagged("-at_install", "post_install")` - Standard OCA test pattern
+
+#### Models (`l10n_br_payment_pagarme/models/`)
+- **payment_provider.py**: Extends `payment.provider` with PagarMe configuration
+- **payment_transaction.py**: Extends `payment.transaction` with PagarMe processing
+- **payment_token.py**: Extends `payment.token` with PagarMe tokenization
+
+### Navigation Commands
+
+```bash
+# See all Python files and their purpose
+find l10n_br_payment_pagarme -name "*.py" -exec echo "=== {} ===" \; -exec head -5 {} \;
+
+# See all XML view files
+find l10n_br_payment_pagarme -name "*.xml" | sort
+
+# Check module dependencies 
+grep -A 5 -B 5 '"depends"' l10n_br_payment_pagarme/__manifest__.py
+
+# See test structure
+ls -la l10n_br_payment_pagarme/tests/
+
+# Check static assets
+find l10n_br_payment_pagarme/static -type f
+```
+
+## Common Development Tasks
+
+### Adding New Payment Methods
+1. **Modify payment_provider.py**: Add configuration fields
+2. **Update payment_transaction.py**: Add processing logic
+3. **Add/modify XML views**: Update provider configuration forms  
+4. **Update tests**: Add test cases for new method
+5. **ALWAYS validate**: Run full pre-commit validation
+
+### Debugging Payment Flows
+```bash
+# Check payment controller routes
+grep -r "@http.route" l10n_br_payment_pagarme/controllers/
+
+# See transaction states and processing  
+grep -r "simulated_state" l10n_br_payment_pagarme/
+
+# Check notification data structure
+grep -A 10 -B 5 "notification_data" l10n_br_payment_pagarme/tests/common.py
+```
+
+### Adding New Tests
+1. **Extend PaymentPagarmeCommon**: Use common test base in `tests/common.py`
+2. **Use standard tags**: `@tagged("-at_install", "post_install")`  
+3. **Follow naming**: `test_descriptive_name_of_behavior`
+4. **Test both flows**: Direct payment and tokenization scenarios
 
 ## Development Guidelines
 
 ### 1. ODOO OCA Standards Compliance
-
-#### Module Structure
-
-- **ALWAYS** follow the OCA module structure pattern
-- **REQUIRED**: Each module must have `__manifest__.py` with proper OCA metadata
-- **REQUIRED**: Include `__init__.py` files in all Python directories
-- Use descriptive names following OCA naming conventions (`l10n_br_*` for Brazilian
-  localization)
 
 #### Manifest File Requirements
 
@@ -343,16 +491,33 @@ The repository uses OCA testing infrastructure as defined in
 `.github/workflows/test.yml`:
 
 ```bash
-# Tests are run automatically using OCA CI containers
-# Commands from test.yml workflow:
-oca_install_addons       # Install dependencies
-oca_init_test_database   # Initialize test database
-oca_run_tests           # Run all tests
+# Tests are run automatically using OCA CI containers with GitHub Actions
+# Following test.yml workflow pattern with containers and services:
+# - container: ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest 
+# - services: postgres:14.0 with proper environment variables
+# - Separated steps: install addons → check licenses → init database → run tests
 
-# For local development with Docker:
-docker run --rm -v $(pwd):/opt/odoo/addons/custom \
-  ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest \
-  oca_run_tests
+# GitHub Actions approach (from test.yml):
+export INCLUDE="l10n_br_payment_pagarme"
+export EXCLUDE=""
+
+# Step 1: Install addons and dependencies
+oca_install_addons
+
+# Step 2: Check licenses  
+manifestoo -d . check-licenses
+
+# Step 3: Check development status
+manifestoo -d . check-dev-status --default-dev-status=Beta
+
+# Step 4: Initialize test database
+oca_init_test_database
+
+# Step 5: Run tests
+oca_run_tests
+
+# For local testing, replicate GitHub Actions environment:
+# IMPORTANT: Use Docker Compose approach like test.yml, NOT direct docker run
 ```
 
 ### 4. Brazilian Market Specifics
@@ -627,34 +792,6 @@ python -m ruff check --fix .
 npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}"
 ```
 
-#### Network Issues and Alternative Validation
-
-If pre-commit encounters network issues during installation, use these alternative
-validation methods:
-
-```bash
-# Install core tools directly
-pip install ruff
-npm install prettier @prettier/plugin-xml
-
-# Manual validation commands
-ruff check --fix .                    # Python linting
-ruff format .                         # Python formatting
-npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}" --ignore-unknown
-
-# Check Python syntax compilation
-find . -name "*.py" -exec python -m py_compile {} \;
-
-# Check XML syntax with Python
-find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;
-
-# Check for trailing whitespace
-find . -name "*.py" -exec grep -l "[[:space:]]$" {} \;
-
-# Check for missing newlines at end of files
-find . -name "*.py" -exec sh -c 'if [ "$(tail -c1 "$1")" != "" ]; then echo "$1"; fi' _ {} \;
-```
-
 #### OCA README Standards
 
 When updating README.md files, follow OCA standards:
@@ -705,21 +842,115 @@ The repository uses GitHub Actions workflows defined in `.github/workflows/`:
 
 - **OCA CI containers**: Uses official OCA testing infrastructure
 - **Database**: PostgreSQL 14.0 with Odoo and OCB testing
-- **Commands**: `oca_install_addons`, `oca_init_test_database`, `oca_run_tests`
+- **Commands**: `oca_install_addons`, `oca_init_test_database`, `oca_run_tests` (with INCLUDE/EXCLUDE env vars)
 - **Quality checks**: License validation, development status checks
 - **Coverage**: Codecov integration for test coverage reporting
 
-#### Local Testing
+#### Local Testing Setup
 
+**LOCAL DOCKER COMPOSE APPROACH**: Replicate GitHub Actions `container:` + `services:` pattern locally
+
+1. **Use pre-commit for immediate validation**:
 ```bash
-# Use the same OCA containers as CI
-docker run --rm -v $(pwd):/opt/odoo/addons/custom \
-  ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest \
-  oca_run_tests
+# Quick local validation (MANDATORY first step)
+pre-commit run --all-files
+```
 
-# Check module compliance (as per test.yml)
-manifestoo -d . check-licenses
-manifestoo -d . check-dev-status --default-dev-status=Beta
+2. **Use Docker Compose for full OCA validation locally**:
+```bash
+# Create temporary Docker Compose file with proper networking
+cat > docker-compose-oca-test.yml << 'EOF'
+version: '3.8'
+services:
+  postgres:
+    image: postgres:14.0
+    environment:
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
+      POSTGRES_DB: odoo
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - oca-network
+
+  oca-ci:
+    image: ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/opt/odoo/addons/custom
+    working_dir: /opt/odoo/addons/custom
+    environment:
+      - INCLUDE=l10n_br_payment_pagarme
+      - EXCLUDE=
+      - PGHOST=postgres
+      - PGUSER=odoo
+      - PGPASSWORD=odoo
+      - PGDATABASE=odoo
+    networks:
+      - oca-network
+
+networks:
+  oca-network:
+    driver: bridge
+EOF
+
+# Step 1: Start PostgreSQL service with health check
+docker compose -f docker-compose-oca-test.yml up -d postgres
+
+# Step 2: Install addons with INCLUDE/EXCLUDE using Docker Compose run
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_install_addons"
+
+# Step 3: Test PostgreSQL connectivity using Docker (MANDATORY after oca_install_addons)
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "echo 'Testing PostgreSQL connectivity...' && timeout 30 bash -c 'until pg_isready -h postgres -p 5432 -U odoo; do echo \"Waiting for PostgreSQL...\"; sleep 2; done' && echo 'PostgreSQL connection verified ✅'"
+
+# Step 4: Initialize test database using Docker Compose
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_init_test_database"
+
+# Step 5: Run tests using Docker Compose
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_run_tests"
+
+# Step 6: Cleanup
+docker compose -f docker-compose-oca-test.yml down
+rm docker-compose-oca-test.yml
+```
+
+3. **GitHub Actions CI validation** (automatic on push):
+   - Mirrors the exact same steps with `container:` + `services:` setup
+   - Provides backup validation and CI/CD integration
+   - Uses same INCLUDE/EXCLUDE environment variables
+
+**GitHub Actions Environment (from test.yml)**:
+```yaml
+runs-on: ubuntu-22.04
+container: ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest
+services:
+  postgres:
+    image: postgres:14.0
+    env:
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
+      POSTGRES_DB: odoo
+    ports:
+      - 5432:5432
+```
+
+**All OCA steps use INCLUDE/EXCLUDE environment variables**:
+```bash
+export INCLUDE="l10n_br_payment_pagarme"
+export EXCLUDE=""
+```
+
+**LOCAL TESTING REQUIREMENTS**: 
+- **Step 1**: Pre-commit validation (local, fast feedback)
+- **Step 2**: Docker Compose OCA testing (local, full validation)
+- **Step 3**: GitHub Actions CI (automatic, backup validation)
 ```
 
 ### 8. Development Workflow
@@ -821,141 +1052,47 @@ _logger.warning("Warning message")
 _logger.error("Error message: %s", error_details)
 ```
 
-## Quick Reference
+---
 
-### 🚨 FIREWALL RULES - EXECUTE AFTER EVERY CODE CHANGE 🚨
+## Quick Reference Commands
 
-```bash
-# PRIMARY FIREWALL COMMAND (execute after every code change)
-pre-commit run --all-files
-
-# EMERGENCY FIREWALL (if pre-commit fails due to network issues)
-python -m ruff format . && python -m ruff check --fix .
-npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}"
-find . -name "*.py" -exec python -m py_compile {} \;
-find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;
-
-# VALIDATION FIREWALL (before any commit/push)
-git diff --check && echo "✅ FIREWALL PASSED - Safe to proceed"
-```
-
-### Setup and Development
+Following the consolidation in Rule 1, these are the essential commands:
 
 ```bash
-# Clone and setup repository
-git clone https://github.com/santzit/l10n-brazil-pagarme.git
-cd l10n-brazil-pagarme
+# Fresh repository setup (execute once)
+pip install pre-commit && pre-commit install
 
-# MANDATORY: Install development tools and setup pre-commit
-pip install pre-commit
-pre-commit install
-
-# MANDATORY: Quality checks (following .pre-commit-config.yaml)
-# Run this before every commit to prevent CI failures
+# MANDATORY validation after EVERY code change (Rule 1)
 pre-commit run --all-files
 
-# Auto-fix common formatting issues
-python -m ruff format .                    # Fix Python formatting (double quotes, etc.)
-python -m ruff check --fix .             # Fix Python linting issues
-npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}"  # Fix XML/JS formatting
+# MANDATORY OCA testing (Rule 1) - Docker Compose approach following test.yml pattern
+# Step 1: Start PostgreSQL service
+docker compose -f docker-compose-oca-test.yml up -d postgres
 
-# Testing (following .github/workflows/test.yml patterns)
-oca_install_addons
-oca_init_test_database
-oca_run_tests
+# Step 2: Install addons with INCLUDE/EXCLUDE using Docker Compose run
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_install_addons"
 
-# Module validation
-manifestoo -d . check-licenses
-manifestoo -d . check-dev-status --default-dev-status=Beta
+# Step 3: Test PostgreSQL connectivity using Docker (MANDATORY after oca_install_addons)
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "echo 'Testing PostgreSQL connectivity...' && timeout 30 bash -c 'until pg_isready -h postgres -p 5432 -U odoo; do echo \"Waiting for PostgreSQL...\"; sleep 2; done' && echo 'PostgreSQL connection verified ✅'"
+
+# Step 4: Initialize database
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_init_test_database"
+
+# Step 5: Run tests
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_run_tests"
+
+# Step 6: Cleanup
+docker compose -f docker-compose-oca-test.yml down
+
+# Repository exploration
+find l10n_br_payment_pagarme -name "*.py" | head -10    # See Python files
+find l10n_br_payment_pagarme -name "*.xml" | head -10   # See XML files  
+grep -r "class.*Model" l10n_br_payment_pagarme/models/  # See model classes
 ```
-
-### Development Checklist
-
-#### 🚨 FIREWALL VALIDATION CHECKLIST (MANDATORY) 🚨
-
-- [ ] **FIREWALL RULE 1**: Execute `pre-commit run --all-files` after EVERY code change
-- [ ] **FIREWALL RULE 2**: All Python strings use double quotes (ruff enforced)
-- [ ] **FIREWALL RULE 3**: All `__init__.py` use explicit re-exports
-      (`from . import module as module`)
-- [ ] **FIREWALL RULE 4**: All files end with single newline, no trailing whitespace
-- [ ] **FIREWALL RULE 5**: Execute emergency protocols if pre-commit network fails
-
-#### Standard Development Requirements
-
-- [ ] Follow `l10n_br_*` naming convention for Brazilian modules
-- [ ] Implement proper `__manifest__.py` with OCA metadata using **double quotes**
-- [ ] Add models in `models/` directory with proper inheritance using **double quotes**
-- [ ] Create views in `views/` directory with properly formatted XML structure
-- [ ] Add tests in `tests/` directory using OCA patterns with **double quotes**
-- [ ] Include security definitions in `security/` if needed
-- [ ] Use translation markers `_()` for user-facing strings with **double quotes**
-- [ ] Use explicit re-exports in all `__init__.py` files
-      (`from . import module as module`)
-- [ ] Ensure all files end with a single newline
-- [ ] Remove all trailing whitespace from files
-- [ ] Follow Brazilian localization requirements
-- [ ] **README.md**: Follow OCA standards with badges, bilingual content, and proper
-      structure
-- [ ] **README.md**: Include Runboat links, installation instructions, and OCA footer
-- [ ] **README.md**: Use auto-generated addons table format with proper comments
-
-#### Final Validation (MANDATORY BEFORE COMMIT)
-
-- [ ] **MANDATORY**: Run tests following `.github/workflows/test.yml` patterns BEFORE
-      any commits
-- [ ] **MANDATORY**: Run pre-commit hooks and ensure ALL checks pass:
-      `pre-commit run --all-files`
-- [ ] **MANDATORY**: Fix any ruff formatting errors (especially quote standardization)
-- [ ] **MANDATORY**: Fix any prettier formatting errors for XML/JS files
-- [ ] **MANDATORY**: Validate Python syntax compilation:
-      `find . -name "*.py" -exec python -m py_compile {} \;`
-- [ ] **MANDATORY**: Validate XML syntax:
-      `find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;`
-- [ ] **MANDATORY**: Validate data XML files for proper external ID references (critical
-      for preventing test failures): - Run the enhanced data XML validation script from
-      Rule 6 - Ensure all `ref` attributes in data files use proper module prefixing
-      (e.g., `l10n_br_payment_pagarme.view_id`) - Check that cross-module record IDs
-      don't incorrectly reference external modules - Verify that all referenced external
-      IDs actually exist in the referenced modules
-- [ ] **MANDATORY**: Check XML view inheritance validity (critical for preventing test
-      failures): - Ensure all xpath expressions in inherited views target elements that
-      exist in parent views - Use `xpath expr="."` for adding content inside parent
-      elements when specific hooks don't exist - Avoid targeting non-existent named
-      elements like `[@name='non_existent_hook']`
-- [ ] Test with OCA infrastructure using `oca_run_tests`
-- [ ] Validate module compliance with manifestoo tools
-
-### Environment Requirements
-
-- **Python**: 3.9 (as per GitHub Actions configuration)
-- **Odoo**: 16.0 compatibility required
-- **Database**: PostgreSQL 14.0+ for testing
-- **Tools**: Docker (for OCA testing), pre-commit, manifestoo
-- **Brazilian Context**: Understanding of Brazilian market and regulatory requirements
-
-This repository maintains high OCA standards while focusing on Brazilian localization
-requirements. Always prioritize code quality, comprehensive testing, regulatory
-compliance, and maintainability when developing new modules or features.
 
 ---
 
-## 🚨 FINAL REMINDER: FIREWALL RULES ENFORCEMENT 🚨
+This repository maintains high OCA standards while focusing on Brazilian localization requirements. Always prioritize code quality, comprehensive testing, regulatory compliance, and maintainability when developing new modules or features.
 
-**These commands MUST be executed after EVERY code change - NO EXCEPTIONS:**
+**Remember: Rule 1 requires BOTH pre-commit AND local Docker-based OCA testing to pass before ANY commit - no exceptions.**
 
-```bash
-# Execute this after every code modification
-pre-commit run --all-files
-
-# Emergency fallback if network issues occur
-python -m ruff format . && python -m ruff check --fix .
-npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}"
-find . -name "*.py" -exec python -m py_compile {} \;
-```
-
-**Failure to execute these firewall rules will result in CI pipeline failures and
-blocked merges.**
-
-Remember: Pre-commit hooks are your first line of defense against formatting errors and
-CI failures. The pre-commit environment shown in the successful execution indicates that
-all necessary tools are properly installed and ready for validation.
