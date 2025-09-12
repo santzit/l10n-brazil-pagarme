@@ -15,11 +15,7 @@ This is an **Odoo 16.0 OCA (Odoo Community Association) module repository** for 
 # TIMING: 40 seconds for full validation - NEVER CANCEL
 pre-commit run --all-files
 
-# If pre-commit fails due to network issues, use alternative validation:
-python -m ruff format .
-python -m ruff check --fix .
-npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}"
-find . -name "*.py" -exec python -m py_compile {} \;
+# NO ALTERNATIVE SOLUTIONS - PRE-COMMIT MUST PASS
 ```
 
 ### Rule 2: Zero Tolerance for Formatting Violations
@@ -42,26 +38,58 @@ npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}"  # Format validation
 find . -name "*.py" -exec python -m py_compile {} \;       # Syntax validation
 ```
 
-### Rule 4: Emergency Protocols for Network Issues
+### Rule 4: MANDATORY Testing Requirements Before Commits
 
-When pre-commit installation fails due to network issues, execute these commands
-immediately:
+**CRITICAL: BOTH pre-commit AND oca_run_tests MUST pass before ANY commit**
 
 ```bash
-# Install tools directly if pre-commit network fails
-pip install ruff
-npm install prettier @prettier/plugin-xml
+# STEP 1: MANDATORY pre-commit validation (MUST PASS)
+pre-commit run --all-files
 
-# Execute manual validation (substitute for pre-commit)
-ruff check --fix . && ruff format .
-npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}" --ignore-unknown
-find . -name "*.py" -exec python -m py_compile {} \;
-find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;
+# STEP 2: MANDATORY OCA testing with PostgreSQL (MUST PASS)
+# Following OCA recommendations with INCLUDE/EXCLUDE environment variables
+export INCLUDE="l10n_br_payment_pagarme"
+export EXCLUDE=""
+
+# For local testing, use Docker with PostgreSQL service (like test.yml):
+docker run --rm \
+  --network host \
+  -e POSTGRES_USER=odoo \
+  -e POSTGRES_PASSWORD=odoo \
+  -e POSTGRES_DB=odoo \
+  -e INCLUDE="l10n_br_payment_pagarme" \
+  -e EXCLUDE="" \
+  -v $(pwd):/opt/odoo/addons/custom \
+  ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest \
+  bash -c "
+    # Start PostgreSQL in background
+    service postgresql start &&
+    # Run OCA testing sequence
+    cd /opt/odoo/addons/custom &&
+    oca_install_addons &&
+    oca_init_test_database &&
+    oca_run_tests
+  "
 ```
 
-**FAILURE TO COMPLY WITH THESE FIREWALL RULES WILL RESULT IN CI PIPELINE FAILURES**
+**NO COMMITS ALLOWED WITHOUT BOTH VALIDATIONS PASSING - NO ALTERNATIVE SOLUTIONS**
 
-### Rule 5: File Modification Restrictions
+### Rule 5: STRICT COMMIT ENFORCEMENT  
+
+**ABSOLUTE REQUIREMENT: BOTH pre-commit AND oca_run_tests MUST PASS before ANY commit**
+
+- **NO COMMITS** are allowed unless BOTH validations pass completely
+- **NO ALTERNATIVE SOLUTIONS** are permitted - both tools are mandatory  
+- **NO EXCEPTIONS** - if either validation fails, the commit MUST NOT proceed
+- **ERROR REPORTING** - if validation fails, report the specific error and stop the process
+
+**ENFORCEMENT SEQUENCE:**
+1. Execute `pre-commit run --all-files` - MUST PASS
+2. Execute OCA testing with PostgreSQL - MUST PASS
+3. Only proceed with commit if BOTH pass
+4. If either fails: STOP, report error, do NOT commit
+
+### Rule 6: File Modification Restrictions
 
 **CRITICAL: Root and GitHub directory protection rules - NO EXCEPTIONS**
 
@@ -75,35 +103,48 @@ find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.par
 - **EXCEPTION**: The `.github/copilot-instructions.md` file can be modified when
   updating documentation
 
-### Rule 6: Testing Requirements Before Commits
+### Rule 7: MANDATORY Pre-Commit Validation
 
-**MANDATORY: Run tests before any code changes are committed**
+**CRITICAL: NO CODE CHANGES WITHOUT PRE-COMMIT VALIDATION**
 
 ```bash
-# REQUIRED: Execute test workflow before committing changes (from .github/workflows/test.yml)
+# MANDATORY: Pre-commit must pass before ANY code changes are committed
+pre-commit run --all-files
+
+# MANDATORY: OCA testing must pass before ANY code changes are committed  
 # Following OCA recommendations with INCLUDE/EXCLUDE environment variables
-
-# 1. Install addons and dependencies using OCA tools
 export INCLUDE="l10n_br_payment_pagarme"
 export EXCLUDE=""
-oca_install_addons
 
-# 2. Check licenses and development status  
-manifestoo -d . check-licenses
-manifestoo -d . check-dev-status --default-dev-status=Beta
+# Use Docker with PostgreSQL service (following test.yml configuration):
+docker run --rm -d --name postgres-test \
+  -e POSTGRES_USER=odoo \
+  -e POSTGRES_PASSWORD=odoo \
+  -e POSTGRES_DB=odoo \
+  -p 5432:5432 \
+  postgres:14.0
 
-# 3. Initialize test database
-export INCLUDE="l10n_br_payment_pagarme" 
-export EXCLUDE=""
-oca_init_test_database
+# Wait for PostgreSQL to be ready
+sleep 10
 
-# 4. Run tests for l10n_br_payment_pagarme only
-export INCLUDE="l10n_br_payment_pagarme"
-export EXCLUDE=""
-oca_run_tests
+# Run OCA testing with proper PostgreSQL connection
+docker run --rm \
+  --network host \
+  -e INCLUDE="l10n_br_payment_pagarme" \
+  -e EXCLUDE="" \
+  -v $(pwd):/opt/odoo/addons/custom \
+  ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest \
+  bash -c "
+    cd /opt/odoo/addons/custom &&
+    oca_install_addons &&
+    manifestoo -d . check-licenses &&
+    manifestoo -d . check-dev-status --default-dev-status=Beta &&
+    oca_init_test_database &&
+    oca_run_tests
+  "
 
-# Alternative: If OCA tools not available locally, validate basic syntax and structure:
-find . -name "*.py" -exec python -m py_compile {} \;
+# Clean up
+docker stop postgres-test
 
 # NOTE: Pre-commit and OCA Tools
 # OCA Docker images do NOT include pre-commit tools (oca_run_precommit does not exist)
@@ -230,10 +271,6 @@ pre-commit install
 # STEP 2: MANDATORY quality validation (40 seconds - NEVER CANCEL)
 # Set timeout to 60+ seconds in any automation
 pre-commit run --all-files
-
-# STEP 3: Install alternative validation tools for emergencies (3 seconds total)
-pip install ruff                                    # 2 seconds
-npm install prettier @prettier/plugin-xml          # 1 second
 ```
 
 ### Build and Test Commands - VALIDATED WORKING
@@ -265,19 +302,39 @@ manifestoo -d . list                             # Lists: l10n_br_payment_pagarm
 **CRITICAL: OCA testing requires PostgreSQL database**
 
 ```bash
-# Local OCA testing approach (REQUIRES DATABASE):
-# The following commands need PostgreSQL running but work in CI environment:
-# Following OCA recommendation with INCLUDE/EXCLUDE environment variables
+# Local OCA testing approach (REQUIRES POSTGRESQL DATABASE):
+# The following commands require PostgreSQL running as configured in test.yml
 
-# export INCLUDE="l10n_br_payment_pagarme"    
-# export EXCLUDE=""
-# oca_init_test_database    # Initialize test database (requires postgres)
-# oca_run_tests            # Run module tests (requires database)
+# Start PostgreSQL service (following test.yml configuration)
+docker run --rm -d --name postgres-test \
+  -e POSTGRES_USER=odoo \
+  -e POSTGRES_PASSWORD=odoo \
+  -e POSTGRES_DB=odoo \
+  -p 5432:5432 \
+  postgres:14.0
 
-# Alternative: Local validation without database (ALWAYS WORKS):
-find . -name "*.py" -exec python -m py_compile {} \;  # Python syntax check
-find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;  # XML validation
-pre-commit run --all-files                           # Full quality validation
+# Wait for PostgreSQL to be ready
+sleep 10
+
+# Run OCA testing with proper environment variables (OCA recommendation)
+export INCLUDE="l10n_br_payment_pagarme"
+export EXCLUDE=""
+
+docker run --rm \
+  --network host \
+  -e INCLUDE="l10n_br_payment_pagarme" \
+  -e EXCLUDE="" \
+  -v $(pwd):/opt/odoo/addons/custom \
+  ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest \
+  bash -c "
+    cd /opt/odoo/addons/custom &&
+    oca_install_addons &&
+    oca_init_test_database &&
+    oca_run_tests
+  "
+
+# Clean up PostgreSQL
+docker stop postgres-test
 ```
 
 ## Repository Overview
@@ -333,25 +390,6 @@ try:
 except Exception as e:
     print(f'❌ Import error: {e}')
 "
-```
-
-#### Scenario 3: Emergency Validation (Network Issues)
-```bash
-# Use when pre-commit fails due to network connectivity
-# TIMING: Each command under 1 second
-
-# Alternative Python validation
-python -m ruff format .
-python -m ruff check --fix .
-
-# Alternative XML/JS validation  
-npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}" --ignore-unknown
-
-# Manual syntax checks
-find . -name "*.py" -exec python -m py_compile {} \;
-find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;
-
-# SUCCESS CRITERIA: No syntax errors, consistent formatting
 ```
 
 ## Build and Test Timing Expectations
@@ -898,34 +936,6 @@ python -m ruff check --fix .
 npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}"
 ```
 
-#### Network Issues and Alternative Validation
-
-If pre-commit encounters network issues during installation, use these alternative
-validation methods:
-
-```bash
-# Install core tools directly
-pip install ruff
-npm install prettier @prettier/plugin-xml
-
-# Manual validation commands
-ruff check --fix .                    # Python linting
-ruff format .                         # Python formatting
-npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}" --ignore-unknown
-
-# Check Python syntax compilation
-find . -name "*.py" -exec python -m py_compile {} \;
-
-# Check XML syntax with Python
-find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;
-
-# Check for trailing whitespace
-find . -name "*.py" -exec grep -l "[[:space:]]$" {} \;
-
-# Check for missing newlines at end of files
-find . -name "*.py" -exec sh -c 'if [ "$(tail -c1 "$1")" != "" ]; then echo "$1"; fi' _ {} \;
-```
-
 #### OCA README Standards
 
 When updating README.md files, follow OCA standards:
@@ -1232,18 +1242,6 @@ manifestoo -d . check-dev-status --default-dev-status=Beta
 - [ ] **View changes**: Validate XML structure and inheritance
 - [ ] **Test changes**: Ensure tests follow `PaymentPagarmeCommon` pattern
 
-### Emergency Protocols (Network Issues)
-```bash
-# When pre-commit fails due to network, run these INSTEAD:
-pip install ruff                                    # Direct tool install
-npm install prettier @prettier/plugin-xml          # Direct tool install
-
-python -m ruff format . && python -m ruff check --fix .              # Python validation
-npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}" --ignore-unknown  # XML/JS validation  
-find . -name "*.py" -exec python -m py_compile {} \;                 # Syntax validation
-find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;  # XML validation
-```
-
 ### Common Issues and Solutions
 ```bash
 # Issue: "Permission denied: test-constraints.txt" in pre-commit
@@ -1251,8 +1249,17 @@ find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.par
 # Solution: Fix file permissions
 sudo chmod 644 test-constraints.txt
 
-# Issue: Pre-commit environments fail to install
-# Cause: Network connectivity issues
+# Issue: PostgreSQL connection issues in Docker
+# Cause: PostgreSQL service not started or port conflicts
+# Solution: Ensure PostgreSQL container is running and ports are available
+docker ps | grep postgres
+
+# Issue: OCA tools fail with "No addon selected"
+# Cause: Wrong working directory or missing ADDON_DIRS
+# Solution: Run from repository root with proper environment variables
+export INCLUDE="l10n_br_payment_pagarme"
+export EXCLUDE=""
+```
 # Solution: Use emergency protocols above
 
 # Issue: "No addon selected" in OCA tools
