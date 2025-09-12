@@ -5,7 +5,7 @@
     "version": "16.0.6.2.0",
     "category": "Hidden",
     "sequence": 350,
-    "summary": "A payment provider for running fake payment flows for pagarme purposes.",
+    "summary": "A payment provider for running fake payment flows for pagarme.",
     "description": " ",  # Non-empty string to avoid loading the README file.
     "depends": ["payment"],
     "data": [

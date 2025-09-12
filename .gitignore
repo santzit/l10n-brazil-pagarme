@@ -86,3 +86,8 @@ docs/_build/
 
 # OCA rules
 !static/lib/
+
+# Node.js development files (temporary)
+node_modules/
+package-lock.json
+package.json

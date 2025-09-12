@@ -1,6 +1,6 @@
 import setuptools
 
-with open("VERSION.txt", "r") as f:
+with open("VERSION.txt") as f:
     version = f.read().strip()
 
 setuptools.setup(

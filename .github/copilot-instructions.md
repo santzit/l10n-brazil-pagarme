@@ -20,9 +20,11 @@ find . -name "*.py" -exec python -m py_compile {} \;
 ### Rule 2: Zero Tolerance for Formatting Violations
 
 - **Python**: ONLY double quotes allowed - `"string"` ✅, `'string'` ❌
+- **Line Length**: MAXIMUM 88 characters per line (E501 enforced by ruff)
 - **Imports**: ONLY explicit re-exports in `__init__.py` - `from . import models as models` ✅
 - **Files**: MUST end with single newline, NO trailing whitespace
 - **XML/JS**: MUST pass prettier formatting validation
+- **Docstrings**: Break long docstrings across multiple lines to stay under 88 chars
 
 ### Rule 3: Validation Before ANY Code Submission
 
@@ -340,6 +342,27 @@ class PaymentProvider(models.Model):
             record.field=self._calculate_value()
 ```
 
+**Line Length Requirements (E501)** - MAXIMUM 88 characters per line:
+
+```python
+# ✅ CORRECT - Break long lines appropriately
+def test_processing_notification_data_sets_transaction_pending(self):
+    """Test that the transaction state is set to 'pending' when the
+    notification data indicate a pending payment."""
+    
+# ✅ CORRECT - Break long comments
+# The reasons why we immediately tokenize the transaction regardless of
+# the state rather than waiting for the payment method to be validated
+# ('authorized' or 'done') like the other payment providers do are:
+
+# ❌ WRONG - Lines over 88 characters will cause E501 errors
+def test_processing_notification_data_sets_transaction_pending(self):
+    """Test that the transaction state is set to 'pending' when the notification data indicate a pending payment."""
+
+# ❌ WRONG - Long comments over 88 characters
+# The reasons why we immediately tokenize the transaction regardless of the state rather than waiting for the payment method to be validated ('authorized' or 'done') like the other payment providers do are:
+```
+
 ##### XML Formatting (Prettier)
 
 **Consistent indentation and formatting**:
@@ -438,6 +461,7 @@ git diff --check
 | Error Type                   | Description                       | Solution                                     |
 | ---------------------------- | --------------------------------- | -------------------------------------------- |
 | **Ruff format**              | Single quotes used                | Change all single quotes to double quotes    |
+| **E501 Line too long**       | Lines exceed 88 characters       | Break long lines, docstrings, and comments  |
 | **F401 imported but unused** | Import not explicitly re-exported | Use `from . import module as module`         |
 | **end-of-file-fixer**        | Missing newline at end            | Add newline at end of file                   |
 | **trailing-whitespace**      | Spaces at end of lines            | Remove trailing spaces                       |
@@ -450,6 +474,7 @@ git diff --check
 Before submitting any changes, ensure:
 
 - [ ] All Python strings use double quotes
+- [ ] All lines are under 88 characters (E501 compliance)
 - [ ] All `__init__.py` files use explicit re-exports (`as module`)
 - [ ] All files end with a single newline
 - [ ] No trailing whitespace in any files

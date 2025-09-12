@@ -14,7 +14,8 @@ from odoo.addons.payment.tests.http_common import PaymentHttpCommon
 @tagged("-at_install", "post_install")
 class TestProcessingFlows(PaymentPagarmeCommon, PaymentHttpCommon):
     def test_portal_payment_triggers_processing(self):
-        """Test that paying from the frontend triggers the processing of the notification data."""
+        """Test that paying from the frontend triggers the processing of the
+        notification data."""
         self._create_transaction(flow="direct")
         url = self._build_url(PaymentPagarmeController._simulation_url)
         with patch(

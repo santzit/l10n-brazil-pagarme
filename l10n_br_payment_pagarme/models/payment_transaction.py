@@ -5,7 +5,6 @@ import logging
 from odoo import _, fields, models
 from odoo.exceptions import UserError, ValidationError
 
-
 _logger = logging.getLogger(__name__)
 
 
@@ -118,7 +117,7 @@ class PaymentTransaction(models.Model):
         notification_data = {
             "reference": self.reference,
             "simulated_state": "done",
-            "manual_capture": True,  # Distinguish manual captures from regular one-step captures.
+            "manual_capture": True,  # Distinguish manual captures from regular ones.
         }
         self._handle_notification_data("pagarme", notification_data)
 
@@ -176,12 +175,13 @@ class PaymentTransaction(models.Model):
         self.provider_reference = f"pagarme-{self.reference}"
 
         if self.tokenize:
-            # The reasons why we immediately tokenize the transaction regardless of the state rather
-            # than waiting for the payment method to be validated ('authorized' or 'done') like the
-            # other payment providers do are:
-            # - To save the simulated state and payment details on the token while we have them.
-            # - To allow customers to create tokens whose transactions will always end up in the
-            #   said simulated state.
+            # The reasons why we immediately tokenize the transaction regardless of
+            # the state rather than waiting for the payment method to be validated
+            # ('authorized' or 'done') like the other payment providers do are:
+            # - To save the simulated state and payment details on the token while
+            #   we have them.
+            # - To allow customers to create tokens whose transactions will always
+            #   end up in the said simulated state.
             self._pagarme_tokenize_from_notification_data(notification_data)
 
         state = notification_data["simulated_state"]
@@ -192,8 +192,9 @@ class PaymentTransaction(models.Model):
                 self._set_authorized()
             else:
                 self._set_done()
-                # Immediately post-process the transaction if it is a refund, as the post-processing
-                # will not be triggered by a customer browsing the transaction from the portal.
+                # Immediately post-process the transaction if it is a refund, as the
+                # post-processing will not be triggered by a customer browsing the
+                # transaction from the portal.
                 if self.operation == "refund":
                     self.env.ref("payment.cron_post_process_payment_tx")._trigger()
         elif state == "cancel":
