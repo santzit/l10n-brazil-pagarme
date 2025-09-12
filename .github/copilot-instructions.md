@@ -97,6 +97,62 @@ find . -name "*.py" -exec python -m py_compile {} \;
 # CRITICAL: XML view validation to prevent test failures
 find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: XML syntax OK')" \;
 
+# CRITICAL: Data XML validation to prevent record reference errors
+python -c "
+import os
+import xml.etree.ElementTree as ET
+
+def validate_data_xml_references():
+    '''Validate XML data files for proper record references and external IDs'''
+    for root, dirs, files in os.walk('.'):
+        if 'data' in dirs:
+            data_path = os.path.join(root, 'data')
+            xml_files = [f for f in os.listdir(data_path) if f.endswith('.xml')]
+            for xml_file in xml_files:
+                xml_path = os.path.join(data_path, xml_file)
+                try:
+                    tree = ET.parse(xml_path)
+                    root_elem = tree.getroot()
+                    
+                    # Check for records with problematic external IDs
+                    for record in root_elem.findall('.//record'):
+                        record_id = record.get('id', '')
+                        
+                        # Check for cross-module references without proper prefixing
+                        if '.' in record_id and not record_id.startswith('l10n_br_payment_pagarme.'):
+                            print(f'WARNING: {xml_file} - Record id=\"{record_id}\" may reference external module incorrectly')
+                        
+                        # Check field references (ref attributes)
+                        for field in record.findall('field[@ref]'):
+                            ref_value = field.get('ref', '')
+                            field_name = field.get('name', '')
+                            
+                            # Check if referencing views that should be module-prefixed
+                            if ref_value in ['inline_form', 'token_inline_form'] and not ref_value.startswith('l10n_br_payment_pagarme.'):
+                                print(f'ERROR: {xml_file} - Field {field_name} references \"{ref_value}\" without module prefix. Should be \"l10n_br_payment_pagarme.{ref_value}\"')
+                                return False
+                            
+                            # Check for other unqualified references that might be internal
+                            if '.' not in ref_value and ref_value not in ['True', 'False'] and not ref_value.isdigit():
+                                print(f'WARNING: {xml_file} - Field {field_name} references \"{ref_value}\" - ensure this external ID exists or is properly qualified')
+                                
+                    print(f'{xml_file}: Data XML validation OK')
+                except ET.ParseError as e:
+                    print(f'ERROR: {xml_file} - XML parsing failed: {e}')
+                    return False
+                except Exception as e:
+                    print(f'ERROR: {xml_file} - Validation failed: {e}')
+                    return False
+    return True
+
+# Run validation
+if not validate_data_xml_references():
+    print('Data XML validation FAILED - fix errors before committing')
+    exit(1)
+else:
+    print('All data XML files validated successfully')
+"
+
 # IMPORTANT: Basic module structure validation
 python -c "
 import os
@@ -855,6 +911,11 @@ manifestoo -d . check-dev-status --default-dev-status=Beta
       `find . -name "*.py" -exec python -m py_compile {} \;`
 - [ ] **MANDATORY**: Validate XML syntax:
       `find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;`
+- [ ] **MANDATORY**: Validate data XML files for proper external ID references (critical for preventing test failures):
+      - Run the enhanced data XML validation script from Rule 6
+      - Ensure all `ref` attributes in data files use proper module prefixing (e.g., `l10n_br_payment_pagarme.view_id`)
+      - Check that cross-module record IDs don't incorrectly reference external modules
+      - Verify that all referenced external IDs actually exist in the referenced modules
 - [ ] **MANDATORY**: Check XML view inheritance validity (critical for preventing test
       failures): - Ensure all xpath expressions in inherited views target elements that
       exist in parent views - Use `xpath expr="."` for adding content inside parent
