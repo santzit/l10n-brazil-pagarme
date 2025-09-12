@@ -7,10 +7,12 @@
           <input name="provider_id" type="hidden" id="provider_id" t-att-value="id" />
           <input name="partner_id" type="hidden" t-att-value="partner_id" />
         </div>
-        <div class="col mt-0 mb-0">
-          <label for="customer_input" class="mt-0">
+
+        <!-- Card Number -->
+        <div class="col-12 col-md-6 mt-0 mb-3">
+          <label for="customer_input" class="form-label">
             <small>
-              <b>Payment Details (test data)</b>
+              <b>Card Number</b>
             </small>
           </label>
           <input
@@ -19,10 +21,79 @@
             id="customer_input"
             class="form-control"
             placeholder="XXXX XXXX XXXX XXXX"
+            maxlength="19"
           />
         </div>
-        <div class="col mb-0">
-          <label for="simulated_payment_state" class="mt-0">
+
+        <!-- Card Holder Name -->
+        <div class="col-12 col-md-6 mt-0 mb-3">
+          <label for="card_holder_name" class="form-label">
+            <small>
+              <b>Card Holder Name</b>
+            </small>
+          </label>
+          <input
+            type="text"
+            name="card_holder_name"
+            id="card_holder_name"
+            class="form-control"
+            placeholder="Name as shown on card"
+          />
+        </div>
+
+        <!-- CPF/CNPJ -->
+        <div class="col-12 col-md-6 mt-0 mb-3">
+          <label for="cardholder_document" class="form-label">
+            <small>
+              <b>CPF/CNPJ</b>
+            </small>
+          </label>
+          <input
+            type="text"
+            name="cardholder_document"
+            id="cardholder_document"
+            class="form-control"
+            placeholder="000.000.000-00 or 00.000.000/0000-00"
+          />
+        </div>
+
+        <!-- Expiration Date -->
+        <div class="col-6 col-md-3 mt-0 mb-3">
+          <label for="card_expiry" class="form-label">
+            <small>
+              <b>Expiry Date</b>
+            </small>
+          </label>
+          <input
+            type="text"
+            name="card_expiry"
+            id="card_expiry"
+            class="form-control"
+            placeholder="MM/AA"
+            maxlength="5"
+          />
+        </div>
+
+        <!-- CVV -->
+        <div class="col-6 col-md-3 mt-0 mb-3">
+          <label for="card_cvv" class="form-label">
+            <small>
+              <b>CVV</b>
+            </small>
+          </label>
+          <input
+            type="text"
+            name="card_cvv"
+            id="card_cvv"
+            class="form-control"
+            placeholder="123"
+            maxlength="4"
+          />
+        </div>
+
+        <!-- Payment Status -->
+        <div class="col-12 col-md-6 mt-0 mb-3">
+          <label for="simulated_payment_state" class="form-label">
             <small>
               <b>Payment Status</b>
             </small>
