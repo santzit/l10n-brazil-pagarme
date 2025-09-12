@@ -24,23 +24,21 @@ odoo.define("l10n_br_payment_pagarme.payment_form", (require) => {
         return this._super(...arguments);
       }
 
-      // Collect all form data
       const customerInput = document.getElementById("customer_input").value;
-      const cardHolderName = document.getElementById("card_holder_name")
-        ? document.getElementById("card_holder_name").value
-        : "";
-      const cardholderDocument = document.getElementById("cardholder_document")
-        ? document.getElementById("cardholder_document").value
-        : "";
-      const cardExpiry = document.getElementById("card_expiry")
-        ? document.getElementById("card_expiry").value
-        : "";
-      const cardCvv = document.getElementById("card_cvv")
-        ? document.getElementById("card_cvv").value
-        : "";
       const simulatedPaymentState = document.getElementById(
         "simulated_payment_state"
       ).value;
+
+      // Collect enhanced form data with safety checks
+      const cardHolderElement = document.getElementById("card_holder_name");
+      const cardDocumentElement = document.getElementById("cardholder_document");
+      const cardExpiryElement = document.getElementById("card_expiry");
+      const cardCvvElement = document.getElementById("card_cvv");
+
+      const cardHolderName = cardHolderElement ? cardHolderElement.value : "";
+      const cardholderDocument = cardDocumentElement ? cardDocumentElement.value : "";
+      const cardExpiry = cardExpiryElement ? cardExpiryElement.value : "";
+      const cardCvv = cardCvvElement ? cardCvvElement.value : "";
 
       return this._rpc({
         route: "/payment/pagarme/simulate_payment",
