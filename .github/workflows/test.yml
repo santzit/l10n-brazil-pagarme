@@ -49,10 +49,13 @@ jobs:
           POSTGRES_DB: odoo
         ports:
           - 5432:5432
+
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Install vcrpy and work around https://github.com/kevin1024/vcrpy/issues/855
+        run: pip install vcrpy --no-build-isolation
       - name: Install addons and dependencies
         run: oca_install_addons
       - name: Check licenses
@@ -67,9 +70,5 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
       - name: Update .pot files
-        run:
-          oca_export_and_push_pot https://x-access-token:${{ secrets.GIT_PUSH_TOKEN
-          }}@github.com/${{ github.repository }}
-        if:
-          ${{ matrix.makepot == 'true' && github.event_name == 'push' &&
-          github.repository_owner == 'OCA' }}
+        run: oca_export_and_push_pot https://x-access-token:${{ secrets.GIT_PUSH_TOKEN }}@github.com/${{ github.repository }}
+        if: ${{ matrix.makepot == 'true' && github.event_name == 'push' && github.repository_owner == 'OCA' }}
