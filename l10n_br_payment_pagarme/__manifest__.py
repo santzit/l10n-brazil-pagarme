@@ -2,7 +2,7 @@
 
 {
     'name': 'Payment Provider: Pagarme',
-    'version': "16.0.6.2.0',
+    'version': '16.0.6.2.0',
     'category': 'Hidden',
     'sequence': 350,
     'summary': "A payment provider for running fake payment flows for pagarme purposes.",
