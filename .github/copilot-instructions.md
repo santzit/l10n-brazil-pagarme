@@ -1,14 +1,18 @@
-# Copilot Instructions for l10n-brazil-pagarme
+# GitHub Copilot Instructions for l10n-brazil-pagarme
+
+**ALWAYS reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.**
+
+This is an **Odoo 16.0 OCA (Odoo Community Association) module repository** for **Brazilian localization payment providers**. The primary module `l10n_br_payment_pagarme` implements PagarMe payment provider integration with Brazilian market-specific features.
 
 ## 🚨 MANDATORY COPILOT FIREWALL RULES 🚨
 
-**THESE RULES MUST BE FOLLOWED WITHOUT EXCEPTION - NO CODE CHANGES ARE ALLOWED WITHOUT
-COMPLIANCE**
+**THESE RULES MUST BE FOLLOWED WITHOUT EXCEPTION - NO CODE CHANGES ARE ALLOWED WITHOUT COMPLIANCE**
 
 ### Rule 1: Pre-commit Execution is MANDATORY
 
 ```bash
 # ABSOLUTE REQUIREMENT: Execute these commands after EVERY code change
+# TIMING: 40 seconds for full validation - NEVER CANCEL
 pre-commit run --all-files
 
 # If pre-commit fails due to network issues, use alternative validation:
@@ -174,55 +178,274 @@ for root, dirs, files in os.walk('l10n_br_payment_pagarme'):
 
 ---
 
+## Working Effectively
+
+### Quick Setup Commands - Execute These on Fresh Clone
+
+```bash
+# STEP 1: Install development tools (4 seconds)
+pip install pre-commit
+pre-commit install
+
+# STEP 2: MANDATORY quality validation (40 seconds - NEVER CANCEL)
+# Set timeout to 60+ seconds in any automation
+pre-commit run --all-files
+
+# STEP 3: Install alternative validation tools for emergencies (3 seconds total)
+pip install ruff                                    # 2 seconds
+npm install prettier @prettier/plugin-xml          # 1 second
+```
+
+### Build and Test Commands - VALIDATED WORKING
+
+```bash
+# Python validation (immediate - under 1 second)
+find . -name "*.py" -exec python -m py_compile {} \;
+
+# XML validation (immediate - under 1 second)  
+find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: XML syntax OK')" \;
+
+# Code formatting (immediate - under 1 second each)
+python -m ruff format .                            # Fix Python formatting
+python -m ruff check --fix .                      # Fix Python linting
+npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}" --ignore-unknown  # Fix XML/JS
+
+# OCA addon installation using Docker (5+ minutes - NEVER CANCEL)
+# Set timeout to 10+ minutes in automation
+docker run --rm -v $(pwd):/opt/odoo/addons/custom ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest bash -c "cd /opt/odoo/addons/custom && ADDON_DIRS='.' oca_install_addons"
+
+# Module validation with manifestoo (immediate)
+pip install manifestoo                            # 3 seconds - one time setup
+manifestoo -d . list                             # Lists: l10n_br_payment_pagarme
+```
+
+### Testing Requirements
+
+**CRITICAL: OCA testing requires PostgreSQL database**
+
+```bash
+# Local OCA testing approach (REQUIRES DATABASE):
+# The following commands need PostgreSQL running but work in CI environment:
+# oca_init_test_database    # Initialize test database (requires postgres)
+# oca_run_tests            # Run module tests (requires database)
+
+# Alternative: Local validation without database (ALWAYS WORKS):
+find . -name "*.py" -exec python -m py_compile {} \;  # Python syntax check
+find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;  # XML validation
+pre-commit run --all-files                           # Full quality validation
+```
+
 ## Repository Overview
 
-This is an **ODOO 16.0 OCA (Odoo Community Association) repository** for **Brazilian
-localization modules**, with a focus on payment providers and Brazilian market
-requirements.
-
 **Key Context:**
+- **Module Type**: Single Odoo 16.0 OCA payment provider module  
+- **Main Module**: `l10n_br_payment_pagarme` - PagarMe payment integration for Brazil
+- **Dependencies**: Odoo 16.0 `payment` module (core payment framework)
+- **Testing**: Uses Odoo's TransactionCase and HttpCase frameworks  
+- **Location**: All development happens in `l10n_br_payment_pagarme/` directory
 
-- **Purpose**: Brazilian localization modules for Odoo, including payment providers and
-  market-specific features
-- **Odoo Version**: 16.0 (follow version-specific patterns and APIs)
-- **OCA Compliance**: Strict adherence to OCA standards for community modules
-- **Localization Focus**: Brazilian market requirements, regulations, and payment
-  systems
-- **Module Pattern**: `l10n_br_*` naming convention for Brazilian localization modules
+## Validation and Testing Scenarios
 
-The repository follows OCA standards and best practices for Odoo module development with
-specific focus on Brazilian market requirements.
+### Manual Validation Requirements
 
-## Repository Structure
+**CRITICAL: After making code changes, ALWAYS run through these validation scenarios:**
 
-This repository contains Brazilian localization modules following OCA directory
-standards:
+#### Scenario 1: Code Quality Validation (REQUIRED AFTER EVERY CHANGE)
+```bash
+# STEP 1: Full pre-commit validation (40 seconds - NEVER CANCEL)
+# Set timeout to 90+ seconds to account for network variations
+pre-commit run --all-files
 
+# STEP 2: Python syntax compilation validation (under 1 second)
+find . -name "*.py" -exec python -m py_compile {} \;
+
+# STEP 3: XML syntax validation (under 1 second)
+find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: XML syntax OK')" \;
+
+# SUCCESS CRITERIA: All commands exit with code 0, no error messages
 ```
-l10n_br_module_name/              # Module directory (l10n_br_* pattern)
-├── __manifest__.py               # Module manifest (required)
-├── __init__.py                   # Module initialization
-├── controllers/                  # HTTP controllers (if needed)
-├── models/                       # Business logic models
-├── views/                        # XML view definitions
-├── data/                         # Data files and records
-├── static/                       # Static assets (JS, CSS, images)
-├── tests/                        # Unit and integration tests
-├── security/                     # Access control files
-└── i18n/                        # Translation files (auto-generated)
+
+#### Scenario 2: Module Structure Validation
+```bash  
+# Verify module manifest integrity
+python -c "
+import ast
+with open('l10n_br_payment_pagarme/__manifest__.py', 'r') as f:
+    manifest = ast.literal_eval(f.read())
+    print(f'Module: {manifest[\"name\"]}')
+    print(f'Version: {manifest[\"version\"]}')  
+    print(f'Dependencies: {manifest[\"depends\"]}')
+    print('✅ Manifest structure valid')
+"
+
+# Verify module imports work
+python -c "
+import sys
+sys.path.insert(0, '.')
+try:
+    from l10n_br_payment_pagarme import models, controllers
+    print('✅ Module imports successful')
+except Exception as e:
+    print(f'❌ Import error: {e}')
+"
 ```
+
+#### Scenario 3: Emergency Validation (Network Issues)
+```bash
+# Use when pre-commit fails due to network connectivity
+# TIMING: Each command under 1 second
+
+# Alternative Python validation
+python -m ruff format .
+python -m ruff check --fix .
+
+# Alternative XML/JS validation  
+npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}" --ignore-unknown
+
+# Manual syntax checks
+find . -name "*.py" -exec python -m py_compile {} \;
+find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;
+
+# SUCCESS CRITERIA: No syntax errors, consistent formatting
+```
+
+## Build and Test Timing Expectations
+
+### Timing Reference (NEVER CANCEL - Wait for Completion)
+
+| Operation | Expected Time | Timeout Setting | Notes |
+|-----------|---------------|-----------------|-------|
+| `pip install pre-commit` | 4 seconds | 60 seconds | Network dependent |
+| `pre-commit install` | < 1 second | 30 seconds | Local operation |
+| `pre-commit run --all-files` (first time) | 40 seconds | 90 seconds | Downloads environments |
+| `pre-commit run --all-files` (subsequent) | 10 seconds | 60 seconds | Uses cached environments |
+| `python -m ruff format .` | < 1 second | 30 seconds | Fast formatter |
+| `python -m ruff check --fix .` | < 1 second | 30 seconds | Fast linter |
+| `npx prettier --write ...` | < 1 second | 30 seconds | Fast formatter |
+| Python syntax validation | < 1 second | 30 seconds | Compilation check |
+| XML syntax validation | < 1 second | 30 seconds | Parser check |
+| OCA Docker addon install | 5+ minutes | 15 minutes | Network + Docker dependent |
+| `pip install manifestoo` | 3 seconds | 60 seconds | Network dependent |
+
+### CI Pipeline Expectations
+
+**From `.github/workflows/test.yml`:**
+- Uses `ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest` Docker container
+- Requires PostgreSQL 14.0 service  
+- Runs `oca_install_addons`, `oca_init_test_database`, `oca_run_tests`
+- **Total CI time: 10-20 minutes** (NEVER CANCEL CI workflows)
+
+## Repository Navigation and Module Structure
+
+### Current Repository Structure (Validated)
+```
+l10n-brazil-pagarme/
+├── .github/                      # GitHub workflows and copilot instructions  
+│   ├── workflows/
+│   │   ├── test.yml             # OCA CI testing workflow
+│   │   └── pre-commit.yml       # Pre-commit validation workflow
+│   └── copilot-instructions.md  # This file
+├── l10n_br_payment_pagarme/     # MAIN MODULE DIRECTORY (focus here)
+│   ├── __manifest__.py          # Module metadata and dependencies
+│   ├── __init__.py              # Module initialization
+│   ├── controllers/             # HTTP controllers for payment flows
+│   │   ├── __init__.py
+│   │   └── main.py              # PaymentPagarmeController
+│   ├── models/                  # Business logic models
+│   │   ├── __init__.py
+│   │   ├── payment_provider.py  # Provider configuration  
+│   │   ├── payment_token.py     # Token management
+│   │   └── payment_transaction.py # Transaction processing
+│   ├── tests/                   # Test cases (IMPORTANT for validation)
+│   │   ├── __init__.py
+│   │   ├── common.py            # PaymentPagarmeCommon test base
+│   │   ├── test_payment_transaction.py # Transaction tests
+│   │   └── test_processing_flows.py    # Flow integration tests
+│   ├── views/                   # XML view definitions
+│   │   ├── payment_pagarme_templates.xml
+│   │   ├── payment_templates.xml
+│   │   ├── payment_token_views.xml
+│   │   └── payment_transaction_views.xml
+│   ├── data/                    # Data records
+│   │   └── payment_provider_data.xml
+│   └── static/src/js/           # Frontend JavaScript
+│       └── payment_form.js      # Payment form handling
+├── .pre-commit-config.yaml      # Pre-commit hook configuration
+├── .ruff.toml                   # Python code formatting rules
+├── .eslintrc.json               # JavaScript linting rules
+├── setup.py                     # Python package setup
+├── test-requirements.txt        # Test dependencies
+└── README.md                    # Project documentation
+```
+
+### Key Files to Know
+
+#### Module Manifest (`l10n_br_payment_pagarme/__manifest__.py`)
+- **Purpose**: Defines module metadata, dependencies, and load order
+- **Dependencies**: `["payment"]` (Odoo core payment framework)
+- **Version**: `16.0.6.2.0` (Odoo 16.0 compatible)
+- **Data Files**: XML views, templates, and provider configuration
+
+#### Test Files (`l10n_br_payment_pagarme/tests/`)
+- **common.py**: `PaymentPagarmeCommon` - Test base class with provider setup
+- **test_payment_transaction.py**: Transaction state and processing tests  
+- **test_processing_flows.py**: End-to-end payment flow tests
+- **Tags**: `@tagged("-at_install", "post_install")` - Standard OCA test pattern
+
+#### Models (`l10n_br_payment_pagarme/models/`)
+- **payment_provider.py**: Extends `payment.provider` with PagarMe configuration
+- **payment_transaction.py**: Extends `payment.transaction` with PagarMe processing
+- **payment_token.py**: Extends `payment.token` with PagarMe tokenization
+
+### Navigation Commands
+
+```bash
+# See all Python files and their purpose
+find l10n_br_payment_pagarme -name "*.py" -exec echo "=== {} ===" \; -exec head -5 {} \;
+
+# See all XML view files
+find l10n_br_payment_pagarme -name "*.xml" | sort
+
+# Check module dependencies 
+grep -A 5 -B 5 '"depends"' l10n_br_payment_pagarme/__manifest__.py
+
+# See test structure
+ls -la l10n_br_payment_pagarme/tests/
+
+# Check static assets
+find l10n_br_payment_pagarme/static -type f
+```
+
+## Common Development Tasks
+
+### Adding New Payment Methods
+1. **Modify payment_provider.py**: Add configuration fields
+2. **Update payment_transaction.py**: Add processing logic
+3. **Add/modify XML views**: Update provider configuration forms  
+4. **Update tests**: Add test cases for new method
+5. **ALWAYS validate**: Run full pre-commit validation
+
+### Debugging Payment Flows
+```bash
+# Check payment controller routes
+grep -r "@http.route" l10n_br_payment_pagarme/controllers/
+
+# See transaction states and processing  
+grep -r "simulated_state" l10n_br_payment_pagarme/
+
+# Check notification data structure
+grep -A 10 -B 5 "notification_data" l10n_br_payment_pagarme/tests/common.py
+```
+
+### Adding New Tests
+1. **Extend PaymentPagarmeCommon**: Use common test base in `tests/common.py`
+2. **Use standard tags**: `@tagged("-at_install", "post_install")`  
+3. **Follow naming**: `test_descriptive_name_of_behavior`
+4. **Test both flows**: Direct payment and tokenization scenarios
 
 ## Development Guidelines
 
 ### 1. ODOO OCA Standards Compliance
-
-#### Module Structure
-
-- **ALWAYS** follow the OCA module structure pattern
-- **REQUIRED**: Each module must have `__manifest__.py` with proper OCA metadata
-- **REQUIRED**: Include `__init__.py` files in all Python directories
-- Use descriptive names following OCA naming conventions (`l10n_br_*` for Brazilian
-  localization)
 
 #### Manifest File Requirements
 
@@ -933,29 +1156,83 @@ manifestoo -d . check-dev-status --default-dev-status=Beta
 - **Tools**: Docker (for OCA testing), pre-commit, manifestoo
 - **Brazilian Context**: Understanding of Brazilian market and regulatory requirements
 
-This repository maintains high OCA standards while focusing on Brazilian localization
-requirements. Always prioritize code quality, comprehensive testing, regulatory
-compliance, and maintainability when developing new modules or features.
+### Practical Development Checklist
+
+#### 🚨 BEFORE Making Any Code Changes
+- [ ] Fresh clone setup: `pip install pre-commit && pre-commit install`
+- [ ] Baseline validation: `pre-commit run --all-files` (40s - NEVER CANCEL)
+- [ ] Environment check: `python -c "import odoo"` (should fail gracefully - no odoo installed locally)
+
+#### 🚨 AFTER Making Code Changes (MANDATORY)
+- [ ] **MANDATORY**: Full validation: `pre-commit run --all-files` (wait 40+ seconds)
+- [ ] **MANDATORY**: Python syntax: `find . -name "*.py" -exec python -m py_compile {} \;`
+- [ ] **MANDATORY**: XML syntax: `find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;`
+- [ ] Module import test: Test that your changes don't break basic imports
+
+#### 🚨 BEFORE Committing (CRITICAL)
+- [ ] **MANDATORY**: Clean pre-commit run: `pre-commit run --all-files` passes
+- [ ] Git status check: `git status` shows only intended changes
+- [ ] Test description: Can describe what the change does and why
+
+#### Module-Specific Validation
+- [ ] **Payment provider changes**: Test provider configuration UI scenarios  
+- [ ] **Transaction changes**: Test payment flow scenarios (direct + tokenization)
+- [ ] **View changes**: Validate XML structure and inheritance
+- [ ] **Test changes**: Ensure tests follow `PaymentPagarmeCommon` pattern
+
+### Emergency Protocols (Network Issues)
+```bash
+# When pre-commit fails due to network, run these INSTEAD:
+pip install ruff                                    # Direct tool install
+npm install prettier @prettier/plugin-xml          # Direct tool install
+
+python -m ruff format . && python -m ruff check --fix .              # Python validation
+npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}" --ignore-unknown  # XML/JS validation  
+find . -name "*.py" -exec python -m py_compile {} \;                 # Syntax validation
+find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;  # XML validation
+```
+
+### Common Issues and Solutions
+```bash
+# Issue: "Permission denied: test-constraints.txt" in pre-commit
+# Cause: File created by Docker with root permissions
+# Solution: Fix file permissions
+sudo chmod 644 test-constraints.txt
+
+# Issue: Pre-commit environments fail to install
+# Cause: Network connectivity issues
+# Solution: Use emergency protocols above
+
+# Issue: "No addon selected" in OCA tools
+# Cause: Wrong working directory or missing ADDON_DIRS
+# Solution: Run from repository root with ADDON_DIRS='.'
+```
 
 ---
 
-## 🚨 FINAL REMINDER: FIREWALL RULES ENFORCEMENT 🚨
-
-**These commands MUST be executed after EVERY code change - NO EXCEPTIONS:**
+## Quick Reference Commands
 
 ```bash
-# Execute this after every code modification
+# Fresh repository setup (execute once)
+pip install pre-commit && pre-commit install
+
+# After EVERY code change (MANDATORY - 40 seconds)
 pre-commit run --all-files
 
-# Emergency fallback if network issues occur
+# Emergency validation (network issues)
 python -m ruff format . && python -m ruff check --fix .
-npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}"
+npx prettier --write "**/*.{xml,js,css,json,md,yml,yaml}" --ignore-unknown
 find . -name "*.py" -exec python -m py_compile {} \;
+
+# Repository exploration
+find l10n_br_payment_pagarme -name "*.py" | head -10    # See Python files
+find l10n_br_payment_pagarme -name "*.xml" | head -10   # See XML files  
+grep -r "class.*Model" l10n_br_payment_pagarme/models/  # See model classes
 ```
 
-**Failure to execute these firewall rules will result in CI pipeline failures and
-blocked merges.**
+---
 
-Remember: Pre-commit hooks are your first line of defense against formatting errors and
-CI failures. The pre-commit environment shown in the successful execution indicates that
-all necessary tools are properly installed and ready for validation.
+This repository maintains high OCA standards while focusing on Brazilian localization requirements. Always prioritize code quality, comprehensive testing, regulatory compliance, and maintainability when developing new modules or features.
+
+**Remember: Pre-commit hooks are your first line of defense against formatting errors and CI failures. NEVER CANCEL long-running validation commands.**
+
