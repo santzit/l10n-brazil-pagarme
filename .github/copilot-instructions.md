@@ -57,6 +57,39 @@ find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.par
 
 **FAILURE TO COMPLY WITH THESE FIREWALL RULES WILL RESULT IN CI PIPELINE FAILURES**
 
+### Rule 5: File Modification Restrictions
+
+**CRITICAL: Root and GitHub directory protection rules - NO EXCEPTIONS**
+
+- **FORBIDDEN**: Do NOT modify any files in root directory (e.g., `.pre-commit-config.yaml`, `.eslintrc.json`, `requirements.txt`, `setup.py`, etc.) unless EXPLICITLY requested by user
+- **FORBIDDEN**: Do NOT modify any files in `.github/` directory (except `.github/copilot-instructions.md`) unless EXPLICITLY requested by user
+- **REQUIRED**: Only modify module files within `l10n_br_payment_pagarme/` directory unless user specifically asks for root/github changes
+- **EXCEPTION**: The `.github/copilot-instructions.md` file can be modified when updating documentation
+
+### Rule 6: Testing Requirements Before Commits
+
+**MANDATORY: Run tests before any code changes are committed**
+
+```bash
+# REQUIRED: Execute test workflow before committing changes (from .github/workflows/test.yml)
+
+# 1. Install addons and dependencies
+oca_install_addons
+
+# 2. Check licenses and development status
+manifestoo -d . check-licenses
+manifestoo -d . check-dev-status --default-dev-status=Beta
+
+# 3. Initialize test database
+oca_init_test_database
+
+# 4. Run tests
+oca_run_tests
+
+# Alternative: If OCA tools not available locally, validate basic syntax:
+find . -name "*.py" -exec python -m py_compile {} \;
+```
+
 ---
 
 ## Repository Overview
@@ -786,6 +819,7 @@ manifestoo -d . check-dev-status --default-dev-status=Beta
 
 #### Final Validation (MANDATORY BEFORE COMMIT)
 
+- [ ] **MANDATORY**: Run tests following `.github/workflows/test.yml` patterns BEFORE any commits
 - [ ] **MANDATORY**: Run pre-commit hooks and ensure ALL checks pass:
       `pre-commit run --all-files`
 - [ ] **MANDATORY**: Fix any ruff formatting errors (especially quote standardization)
