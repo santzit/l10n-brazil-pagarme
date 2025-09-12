@@ -5,34 +5,40 @@ from odoo.exceptions import UserError
 
 
 class PaymentProvider(models.Model):
-    _inherit = 'payment.provider'
+    _inherit = "payment.provider"
 
-    code = fields.Selection(selection_add=[('pagarme', 'Pagarme')], ondelete={'pagarme': 'set default'})
+    code = fields.Selection(
+        selection_add=[("pagarme", "Pagarme")], ondelete={"pagarme": "set default"}
+    )
 
-    #=== COMPUTE METHODS ===#
+    # === COMPUTE METHODS ===#
 
-    @api.depends('code')
+    @api.depends("code")
     def _compute_view_configuration_fields(self):
-        """ Override of payment to hide the credentials page.
+        """Override of payment to hide the credentials page.
 
         :return: None
         """
         super()._compute_view_configuration_fields()
-        self.filtered(lambda p: p.code == 'pagarme').show_credentials_page = False
+        self.filtered(lambda p: p.code == "pagarme").show_credentials_page = False
 
     def _compute_feature_support_fields(self):
-        """ Override of `payment` to enable additional features. """
+        """Override of `payment` to enable additional features."""
         super()._compute_feature_support_fields()
-        self.filtered(lambda p: p.code == 'pagarme').update({
-            'support_fees': True,
-            'support_manual_capture': True,
-            'support_refund': 'partial',
-            'support_tokenization': True,
-        })
+        self.filtered(lambda p: p.code == "pagarme").update(
+            {
+                "support_fees": True,
+                "support_manual_capture": True,
+                "support_refund": "partial",
+                "support_tokenization": True,
+            }
+        )
 
     # === CONSTRAINT METHODS ===#
 
-    @api.constrains('state', 'code')
+    @api.constrains("state", "code")
     def _check_provider_state(self):
-        if self.filtered(lambda p: p.code == 'pagarme' and p.state not in ('test', 'disabled')):
+        if self.filtered(
+            lambda p: p.code == "pagarme" and p.state not in ("test", "disabled")
+        ):
             raise UserError(_("Pagarme providers should never be enabled."))

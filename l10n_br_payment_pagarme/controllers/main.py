@@ -5,13 +5,15 @@ from odoo.http import request
 
 
 class PaymentPagarmeController(http.Controller):
-    _simulation_url = '/payment/pagarme/simulate_payment'
+    _simulation_url = "/payment/pagarme/simulate_payment"
 
-    @http.route(_simulation_url, type='json', auth='public')
+    @http.route(_simulation_url, type="json", auth="public")
     def pagarme_simulate_payment(self, **data):
-        """ Simulate the response of a payment request.
+        """Simulate the response of a payment request.
 
         :param dict data: The simulated notification data.
         :return: None
         """
-        request.env['payment.transaction'].sudo()._handle_notification_data('pagarme', data)
+        request.env["payment.transaction"].sudo()._handle_notification_data(
+            "pagarme", data
+        )
