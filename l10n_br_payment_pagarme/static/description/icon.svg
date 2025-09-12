@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00A651;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#009639;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="58" fill="url(#gradient)" stroke="#007A2E" stroke-width="2"/>
+  
+  <!-- Credit card shape -->
+  <rect x="24" y="40" width="80" height="48" rx="6" ry="6" fill="white" stroke="#CCC" stroke-width="1"/>
+  
+  <!-- Card stripe -->
+  <rect x="24" y="48" width="80" height="8" fill="#333"/>
+  
+  <!-- Chip -->
+  <rect x="32" y="64" width="12" height="8" rx="2" ry="2" fill="#FFD700" stroke="#CCC" stroke-width="0.5"/>
+  
+  <!-- Pagarme text -->
+  <text x="64" y="102" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle" fill="white">PAGARME</text>
+  
+  <!-- Brazil flag colors accent -->
+  <circle cx="90" cy="76" r="3" fill="#FFDF00"/>
+  <circle cx="96" cy="76" r="2" fill="#009739"/>
+</svg>
