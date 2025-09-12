@@ -1,1 +1,0 @@
-odoo-addon-l10n_br_payment_pagarme @ file:///opt/odoo/addons/custom/l10n_br_payment_pagarme
