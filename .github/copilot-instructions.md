@@ -61,10 +61,15 @@ find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.par
 
 **CRITICAL: Root and GitHub directory protection rules - NO EXCEPTIONS**
 
-- **FORBIDDEN**: Do NOT modify any files in root directory (e.g., `.pre-commit-config.yaml`, `.eslintrc.json`, `requirements.txt`, `setup.py`, etc.) unless EXPLICITLY requested by user
-- **FORBIDDEN**: Do NOT modify any files in `.github/` directory (except `.github/copilot-instructions.md`) unless EXPLICITLY requested by user
-- **REQUIRED**: Only modify module files within `l10n_br_payment_pagarme/` directory unless user specifically asks for root/github changes
-- **EXCEPTION**: The `.github/copilot-instructions.md` file can be modified when updating documentation
+- **FORBIDDEN**: Do NOT modify any files in root directory (e.g.,
+  `.pre-commit-config.yaml`, `.eslintrc.json`, `requirements.txt`, `setup.py`, etc.)
+  unless EXPLICITLY requested by user
+- **FORBIDDEN**: Do NOT modify any files in `.github/` directory (except
+  `.github/copilot-instructions.md`) unless EXPLICITLY requested by user
+- **REQUIRED**: Only modify module files within `l10n_br_payment_pagarme/` directory
+  unless user specifically asks for root/github changes
+- **EXCEPTION**: The `.github/copilot-instructions.md` file can be modified when
+  updating documentation
 
 ### Rule 6: Testing Requirements Before Commits
 
@@ -86,8 +91,29 @@ oca_init_test_database
 # 4. Run tests
 oca_run_tests
 
-# Alternative: If OCA tools not available locally, validate basic syntax:
+# Alternative: If OCA tools not available locally, validate basic syntax and structure:
 find . -name "*.py" -exec python -m py_compile {} \;
+
+# CRITICAL: XML view validation to prevent test failures
+find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: XML syntax OK')" \;
+
+# IMPORTANT: Basic module structure validation
+python -c "
+import os
+for root, dirs, files in os.walk('l10n_br_payment_pagarme'):
+    if 'views' in dirs:
+        views_path = os.path.join(root, 'views')
+        xml_files = [f for f in os.listdir(views_path) if f.endswith('.xml')]
+        if xml_files:
+            print(f'Found XML views: {xml_files}')
+            # Basic check that view files don't have broken inheritance
+            for xml_file in xml_files:
+                xml_path = os.path.join(views_path, xml_file)
+                with open(xml_path, 'r') as f:
+                    content = f.read()
+                    if 'inherit_id=' in content and 'xpath' in content:
+                        print(f'WARNING: {xml_file} contains view inheritance - ensure xpath targets exist in parent view')
+"
 ```
 
 ---
@@ -819,7 +845,8 @@ manifestoo -d . check-dev-status --default-dev-status=Beta
 
 #### Final Validation (MANDATORY BEFORE COMMIT)
 
-- [ ] **MANDATORY**: Run tests following `.github/workflows/test.yml` patterns BEFORE any commits
+- [ ] **MANDATORY**: Run tests following `.github/workflows/test.yml` patterns BEFORE
+      any commits
 - [ ] **MANDATORY**: Run pre-commit hooks and ensure ALL checks pass:
       `pre-commit run --all-files`
 - [ ] **MANDATORY**: Fix any ruff formatting errors (especially quote standardization)
@@ -828,6 +855,11 @@ manifestoo -d . check-dev-status --default-dev-status=Beta
       `find . -name "*.py" -exec python -m py_compile {} \;`
 - [ ] **MANDATORY**: Validate XML syntax:
       `find . -name "*.xml" -exec python -c "import xml.etree.ElementTree as ET; ET.parse('{}'); print('{}: OK')" \;`
+- [ ] **MANDATORY**: Check XML view inheritance validity (critical for preventing test
+      failures): - Ensure all xpath expressions in inherited views target elements that
+      exist in parent views - Use `xpath expr="."` for adding content inside parent
+      elements when specific hooks don't exist - Avoid targeting non-existent named
+      elements like `[@name='non_existent_hook']`
 - [ ] Test with OCA infrastructure using `oca_run_tests`
 - [ ] Validate module compliance with manifestoo tools
 
