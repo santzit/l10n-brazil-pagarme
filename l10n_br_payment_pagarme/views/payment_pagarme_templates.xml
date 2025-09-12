@@ -56,19 +56,19 @@
       <div class="alert alert-warning m-2">
         <span t-if="token.pagarme_simulated_state=='pending'">
                     Payments made with this payment method will remain <b
-        >pending</b>.
+          >pending</b>.
                 </span>
         <span t-elif="token.pagarme_simulated_state=='done'">
                     Payments made with this payment method will be <b
-        >successful</b>.
+          >successful</b>.
                 </span>
         <span t-elif="token.pagarme_simulated_state=='cancel'">
                     Payments made with this payment method will be automatically <b
-        >canceled</b>.
+          >canceled</b>.
                 </span>
         <span t-else="">
                     Payments made with this payment method will simulate a processing <b
-        >error</b>.
+          >error</b>.
                 </span>
       </div>
     </div>
