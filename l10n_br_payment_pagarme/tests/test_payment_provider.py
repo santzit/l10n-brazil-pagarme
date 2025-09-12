@@ -22,17 +22,13 @@ class TestPaymentProvider(PaymentPagarmeCommon):
         with self.assertRaises(ValidationError):
             self.provider.pagarme_secret_key = "sk_invalid_key"
 
-    def test_pagarme_secret_key_constraint_production_mode(self):
-        """Test that secret key validation works for production mode."""
-        self.provider.state = "enabled"
+    def test_pagarme_secret_key_constraint_disabled_mode(self):
+        """Test that secret key validation doesn't apply for disabled mode."""
+        self.provider.state = "disabled"
 
-        # Valid production key should not raise error
-        self.provider.pagarme_secret_key = "sk_valid_production_key"
+        # Any key should be allowed in disabled mode
+        self.provider.pagarme_secret_key = "any_key_format"
         # No exception should be raised
-
-        # Invalid production key should raise error
-        with self.assertRaises(ValidationError):
-            self.provider.pagarme_secret_key = "invalid_key"
 
     def test_credentials_page_visibility(self):
         """Test that credentials page is shown for pagarme providers."""

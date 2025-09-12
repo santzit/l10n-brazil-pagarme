@@ -64,13 +64,6 @@ class PaymentProvider(models.Model):
                 raise ValidationError(
                     _("In test mode, PagarMe secret key must start with 'sk_test_'.")
                 )
-            elif (
-                provider.state == "enabled"
-                and not provider.pagarme_secret_key.startswith("sk_")
-            ):
-                raise ValidationError(
-                    _("In production mode, PagarMe secret key must start with 'sk_'.")
-                )
 
     @api.constrains("state", "code")
     def _check_provider_state(self):
