@@ -38,6 +38,7 @@
             id="card_holder_name"
             class="form-control"
             placeholder="Name as shown on card"
+            t-att-value="partner_name"
           />
         </div>
 
