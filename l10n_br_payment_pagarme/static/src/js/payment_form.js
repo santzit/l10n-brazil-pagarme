@@ -84,7 +84,50 @@ odoo.define("l10n_br_payment_pagarme.payment_form", (require) => {
         return Promise.resolve();
       }
       this._setPaymentFlow("direct");
+
+      // Populate card holder name from partner data
+      this._populateCardHolderName();
+
       return Promise.resolve();
+    },
+
+    /**
+     * Populate the card holder name field with partner name if available.
+     *
+     * @private
+     */
+    _populateCardHolderName: function () {
+      // Get partner_id from hidden input or form data
+      const partnerIdElement =
+        document.getElementById("partner_id") ||
+        document.querySelector("input[name=\"partner_id\"]");
+
+      if (!partnerIdElement || !partnerIdElement.value) {
+        console.log("PagarMe: No partner_id found for card holder name");
+        return;
+      }
+
+      const partnerId = partnerIdElement.value;
+      console.log("PagarMe: Found partner_id:", partnerId);
+
+      // Use RPC to get partner name
+      this._rpc({
+        model: "res.partner",
+        method: "read",
+        args: [[parseInt(partnerId)], ["name"]],
+      })
+        .then((result) => {
+          if (result && result.length > 0 && result[0].name) {
+            const cardHolderElement = document.getElementById("card_holder_name");
+            if (cardHolderElement) {
+              cardHolderElement.value = result[0].name;
+              console.log("PagarMe: Set card holder name to:", result[0].name);
+            }
+          }
+        })
+        .catch((error) => {
+          console.warn("PagarMe: Failed to fetch partner name:", error);
+        });
     },
   };
   checkoutForm.include(paymentPagarmeMixin);
