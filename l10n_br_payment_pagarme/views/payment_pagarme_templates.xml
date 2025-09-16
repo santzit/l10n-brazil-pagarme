@@ -38,7 +38,7 @@
             id="card_holder_name"
             class="form-control"
             placeholder="Name as shown on card"
-            t-att-value="partner_name or ''"
+            t-att-value="partner_name or (partner_id and request.env['res.partner'].browse(partner_id).name) or ''"
           />
         </div>
 
