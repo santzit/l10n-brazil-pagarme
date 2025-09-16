@@ -51,6 +51,7 @@ class TestPaymentProvider(PaymentPagarmeCommon):
         # Mock successful API response
         mock_response = Mock()
         mock_response.status_code = 200
+        mock_response.text = '{"data": []}'
         mock_get.return_value = mock_response
 
         self.provider.pagarme_secret_key = "sk_test_valid_key"
