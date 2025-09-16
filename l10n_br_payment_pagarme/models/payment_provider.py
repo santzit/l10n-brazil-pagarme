@@ -55,6 +55,37 @@ class PaymentProvider(models.Model):
 
     # === BUSINESS METHODS ===#
 
+    def _render_inline_form(self, inline_form_xml_id, qweb_context):
+        """Override to add partner name to the template context.
+
+        :param str inline_form_xml_id: The inline form template XML ID.
+        :param dict qweb_context: The QWeb template context.
+        :return: The rendered inline form.
+        :rtype: str
+        """
+        # Add partner name to context if partner_id is available
+        partner_id = qweb_context.get("partner_id")
+        if partner_id and self.code == "pagarme":
+            try:
+                partner = self.env["res.partner"].browse(partner_id)
+                qweb_context["partner_name"] = partner.name or ""
+                _logger.info(
+                    "PagarMe: Added partner_name to template context: %s",
+                    partner.name,
+                )
+            except Exception as e:
+                _logger.warning(
+                    "PagarMe: Failed to get partner name for ID %s: %s", partner_id, e
+                )
+                qweb_context["partner_name"] = ""
+        elif self.code == "pagarme":
+            _logger.info(
+                "PagarMe: No partner_id in context, setting empty partner_name"
+            )
+            qweb_context["partner_name"] = ""
+
+        return super()._render_inline_form(inline_form_xml_id, qweb_context)
+
     def _get_inline_form_values(self, values):
         """Return a dictionary of values used to render the inline form.
 
@@ -62,17 +93,28 @@ class PaymentProvider(models.Model):
         :return: The values used to render the inline form template.
         :rtype: dict
         """
+        # Log the method call to understand when it's invoked
+        _logger.info("PagarMe _get_inline_form_values called with values: %s", values)
+
         # Base implementation since super()._get_inline_form_values doesn't exist
         res = values.copy()
         if self.code != "pagarme":
+            _logger.info("PagarMe provider code check failed, code: %s", self.code)
             return res
 
         # Get partner information from the values or current context
         partner_id = values.get("partner_id")
+        _logger.info("PagarMe partner_id from values: %s", partner_id)
+
         if partner_id:
             partner = self.env["res.partner"].browse(partner_id)
-            res["partner_name"] = partner.name or ""
+            partner_name = partner.name or ""
+            res["partner_name"] = partner_name
+            _logger.info("PagarMe added partner_name to context: %s", partner_name)
+        else:
+            _logger.info("PagarMe no partner_id found in values")
 
+        _logger.info("PagarMe final context values: %s", res)
         return res
 
     # === CONSTRAINT METHODS ===#

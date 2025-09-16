@@ -2,6 +2,19 @@
 <odoo>
   <template id="inline_form">
     <div t-attf-id="pagarme-container-{{provider_id}}">
+      <!-- Debug information for template context -->
+      <script type="text/javascript">
+        console.log('PagarMe template context - provider_id:', '<t
+          t-esc="provider_id"
+        />');
+        console.log('PagarMe template context - partner_id:', '<t
+          t-esc="partner_id"
+        />');
+        console.log('PagarMe template context - partner_name:', '<t
+          t-esc="partner_name"
+        />');
+        console.log('PagarMe template context - id:', '<t t-esc="id" />');
+      </script>
       <div class="row">
         <div class="mb-3">
           <input name="provider_id" type="hidden" id="provider_id" t-att-value="id" />
@@ -38,7 +51,7 @@
             id="card_holder_name"
             class="form-control"
             placeholder="Name as shown on card"
-            t-att-value="partner_name"
+            t-att-value="partner_name or ''"
           />
         </div>
 
