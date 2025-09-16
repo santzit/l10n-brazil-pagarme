@@ -4,5 +4,6 @@ bracketSpacing: false
 printWidth: 88
 proseWrap: always
 semi: true
+singleQuote: false
 trailingComma: "es5"
 xmlWhitespaceSensitivity: "strict"
