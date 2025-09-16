@@ -1,11 +1,14 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
 import base64
+import logging
 
 import requests
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
+
+_logger = logging.getLogger(__name__)
 
 
 class PaymentProvider(models.Model):
@@ -83,15 +86,30 @@ class PaymentProvider(models.Model):
         try:
             url = "https://api.pagar.me/core/v5/customers?size=2"
 
-            # Encode secret key to base64 for Basic auth
-            encoded_key = base64.b64encode(self.pagarme_secret_key.encode()).decode()
+            # PagarMe API expects Basic auth with secret_key: (key with colon)
+            # Encode "secret_key:" to base64 for Basic authentication
+            auth_string = f"{self.pagarme_secret_key}:"
+            encoded_auth = base64.b64encode(auth_string.encode()).decode()
 
             headers = {
-                "authorization": f"Basic {encoded_key}",
+                "authorization": f"Basic {encoded_auth}",
                 "Content-Type": "application/json",
             }
 
+            _logger.info("Testing PagarMe connection to URL: %s", url)
+            _logger.info(
+                "Using secret key prefix: %s",
+                self.pagarme_secret_key[:10] + "...",
+            )
+            _logger.info("Authorization header: Basic %s", encoded_auth[:20] + "...")
+
             response = requests.get(url, headers=headers, timeout=10)
+
+            _logger.info(
+                "PagarMe API response: status=%s, content=%s",
+                response.status_code,
+                response.text[:200],
+            )
 
             if response.status_code == 200:
                 return {
@@ -113,4 +131,5 @@ class PaymentProvider(models.Model):
                 _("Connection timeout. Please check your internet connection.")
             ) from None
         except requests.exceptions.RequestException as e:
+            _logger.error("PagarMe connection error: %s", str(e))
             raise UserError(_("Connection error: %(error)s") % {"error": str(e)}) from e

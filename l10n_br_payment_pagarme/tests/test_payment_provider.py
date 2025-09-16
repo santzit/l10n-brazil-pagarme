@@ -56,6 +56,17 @@ class TestPaymentProvider(PaymentPagarmeCommon):
         self.provider.pagarme_secret_key = "sk_test_valid_key"
         result = self.provider.action_test_pagarme_connection()
 
+        # Verify the correct authentication format is used
+        mock_get.assert_called_once()
+        call_args = mock_get.call_args
+        headers = call_args[1]["headers"]
+
+        # Check that authorization header uses correct format (secret_key:)
+        import base64
+
+        expected_auth = base64.b64encode(b"sk_test_valid_key:").decode()
+        self.assertEqual(headers["authorization"], f"Basic {expected_auth}")
+
         # Check that the notification action is returned
         self.assertEqual(result["type"], "ir.actions.client")
         self.assertEqual(result["tag"], "display_notification")
