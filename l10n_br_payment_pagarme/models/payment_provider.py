@@ -53,6 +53,28 @@ class PaymentProvider(models.Model):
         )
         return
 
+    # === BUSINESS METHODS ===#
+
+    def _get_inline_form_values(self, values):
+        """Return a dictionary of values used to render the inline form.
+
+        :param dict values: The values used to render the inline form template.
+        :return: The values used to render the inline form template.
+        :rtype: dict
+        """
+        # Base implementation since super()._get_inline_form_values doesn't exist
+        res = values.copy()
+        if self.code != "pagarme":
+            return res
+
+        # Get partner information from the values or current context
+        partner_id = values.get("partner_id")
+        if partner_id:
+            partner = self.env["res.partner"].browse(partner_id)
+            res["partner_name"] = partner.name or ""
+
+        return res
+
     # === CONSTRAINT METHODS ===#
 
     @api.constrains("pagarme_secret_key", "state")
