@@ -104,10 +104,10 @@ odoo.define("l10n_br_payment_pagarme.payment_form", (require) => {
       // Try multiple ways to find partner_id
       let partnerIdElement = document.getElementById("partner_id");
       if (!partnerIdElement) {
-        partnerIdElement = document.querySelector("input[name=\"partner_id\"]");
+        partnerIdElement = document.querySelector("input[name=partner_id]");
       }
       if (!partnerIdElement) {
-        partnerIdElement = document.querySelector("[name=\"partner_id\"]");
+        partnerIdElement = document.querySelector("[name=partner_id]");
       }
 
       console.log("PagarMe: partnerIdElement found:", partnerIdElement);
