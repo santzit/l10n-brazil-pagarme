@@ -23,14 +23,14 @@ pre-commit run --all-files
 # Uses Docker Compose approach to mirror GitHub Actions container + services setup
 # TIMING: 10-15 minutes for full OCA validation - NEVER CANCEL
 
-# GitHub Actions runs these separated steps automatically:
+# GitHub Actions runs these separated steps automatically using OCA tools:
 # - Step 1: oca_install_addons
 # - Step 2: manifestoo -d . check-licenses  
 # - Step 3: manifestoo -d . check-dev-status --default-dev-status=Beta
 # - Step 4: oca_init_test_database
 # - Step 5: oca_run_tests
 
-# All steps use INCLUDE/EXCLUDE environment variables:
+# All OCA tools use INCLUDE/EXCLUDE environment variables:
 export INCLUDE="l10n_br_payment_pagarme"
 export EXCLUDE=""
 ```
@@ -45,7 +45,7 @@ export EXCLUDE=""
 
 **ENFORCEMENT SEQUENCE:**
 1. Execute `pre-commit run --all-files` - MUST PASS
-2. Execute Docker-based OCA testing sequence (oca_install_addons → PostgreSQL connection test → oca_init_test_database → oca_run_tests) - MUST PASS
+2. Execute Docker-based OCA testing sequence (oca_install_addons → manifestoo checks → oca_init_test_database → oca_run_tests) - MUST PASS
 3. Only proceed with commit if BOTH validations pass
 4. If any step fails: STOP, report error in comment, do NOT commit
 5. Optional: Push changes to verify GitHub Actions CI also passes
@@ -53,8 +53,9 @@ export EXCLUDE=""
 **LOCAL OCA TESTING WITH DOCKER COMPOSE**
 - GitHub Actions uses `container:` + `services:` approach - replicate locally with Docker Compose
 - **MANDATORY**: Use Docker Compose for local OCA testing that mirrors GitHub Actions setup
-- **SEPARATED STEPS**: Follow exact GitHub Actions pattern with individual Docker commands
-- **CONNECTION TESTING**: Always test PostgreSQL connectivity using Docker after `oca_install_addons`
+- **OCA TOOLS ONLY**: Use official OCA testing tools (oca_install_addons, oca_init_test_database, oca_run_tests)
+- **INCLUDE/EXCLUDE**: Use environment variables for module selection as per OCA standard
+- **SEPARATED STEPS**: Follow exact GitHub Actions pattern with individual OCA tool commands
 
 **Docker Compose Setup for Local Testing:**
 ```yaml
@@ -102,7 +103,7 @@ networks:
 
 **MANDATORY Local OCA Testing Sequence (Rule 1):**
 ```bash
-# Step 1: Create Docker Compose file and start PostgreSQL
+# Step 1: Create Docker Compose file for OCA testing (follows GitHub Actions pattern)
 cat > docker-compose-oca-test.yml << 'EOF'
 services:
   postgres:
@@ -148,19 +149,24 @@ EOF
 # Step 2: Start PostgreSQL service
 docker compose -f docker-compose-oca-test.yml up -d postgres
 
-# Step 3: Install dependencies first
-docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "odoo --addons-path=\$ADDONS_PATH --stop-after-init --log-level=warn -i base,payment"
+# Step 3: Install addons using OCA tools with INCLUDE/EXCLUDE environment variables
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_install_addons"
 
-# Step 4: Install our module
-docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "odoo --addons-path=\$ADDONS_PATH --stop-after-init --log-level=info -i l10n_br_payment_pagarme"
+# Step 4: Check licenses using OCA tools
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "manifestoo -d . check-licenses"
 
-# Step 5: Test PostgreSQL connectivity using Docker (MANDATORY after installation)
-docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "echo 'Testing PostgreSQL connectivity...' && timeout 30 bash -c 'until pg_isready -h postgres -p 5432 -U odoo; do echo \"Waiting for PostgreSQL...\"; sleep 2; done' && echo 'PostgreSQL connection verified ✅'"
+# Step 5: Check development status using OCA tools
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "manifestoo -d . check-dev-status --default-dev-status=Beta"
 
-# Step 6: Run tests on the installed module
-docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "odoo --addons-path=\$ADDONS_PATH --test-enable --stop-after-init --log-level=info -u l10n_br_payment_pagarme"
+# Step 6: Initialize test database using OCA tools (requires Odoo config setup)
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "echo '[options]' > /etc/odoo.cfg && echo 'addons_path=/opt/odoo/addons,/opt/odoo/addons/custom' >> /etc/odoo.cfg && oca_init_test_database"
 
-# Step 7: Cleanup
+# Step 7: Run tests using OCA tools (requires Odoo config setup)
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "echo '[options]' > /etc/odoo.cfg && echo 'addons_path=/opt/odoo/addons,/opt/odoo/addons/custom' >> /etc/odoo.cfg && oca_run_tests"
+
+# Expected successful output: "INFO test_db odoo.tests.result: 0 failed, 0 error(s) of X tests when loading database 'test_db'"
+
+# Step 8: Cleanup
 docker compose -f docker-compose-oca-test.yml down
 rm docker-compose-oca-test.yml
 ```
@@ -465,6 +471,7 @@ class ModelName(models.Model):
 - Place all tests in `tests/` directory
 - Use OCA testing base classes and patterns
 - Follow the testing approach defined in `.github/workflows/test.yml`
+- **CRITICAL**: Ensure proper test module discovery and mock paths for OCA testing
 
 #### Testing Patterns
 
@@ -484,6 +491,32 @@ class TestModuleFunctionality(TransactionCase):
         # Test implementation
         self.assertEqual(expected, actual)
 ```
+
+#### Critical Test Configuration Requirements
+
+**Test Module Discovery (MANDATORY for OCA testing)**:
+- **MUST** include explicit imports in `tests/__init__.py`:
+```python
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+
+from . import test_payment_provider as test_payment_provider
+from . import test_payment_transaction as test_payment_transaction  
+from . import test_processing_flows as test_processing_flows
+```
+
+**Mock Paths for OCA Testing (MANDATORY)**:
+- **CRITICAL**: Use full OCA-compatible module paths in mock decorators:
+```python
+# ✅ CORRECT - OCA compatible mock path
+@patch("odoo.addons.l10n_br_payment_pagarme.models.payment_provider.requests.get")
+
+# ❌ WRONG - Will cause ModuleNotFoundError in OCA testing  
+@patch("l10n_br_payment_pagarme.models.payment_provider.requests.get")
+```
+
+**Test Execution Verification**: 
+- Successful test execution shows: `0 failed, 0 error(s) of X tests when loading database 'test_db'`
+- All tests must be properly tagged with `@tagged("-at_install", "post_install")`
 
 #### Running Tests
 
@@ -519,6 +552,88 @@ oca_run_tests
 # For local testing, replicate GitHub Actions environment:
 # IMPORTANT: Use Docker Compose approach like test.yml, NOT direct docker run
 ```
+
+#### Verified Test Execution Approach (MANDATORY)
+
+**PROVEN WORKING APPROACH** - Using official OCA testing tools with 19 tests passing:
+
+```bash
+# Step 1: Create Docker Compose file for OCA testing
+cat > docker-compose-oca-test.yml << 'EOF'
+services:
+  postgres:
+    image: postgres:14.0
+    environment:
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
+      POSTGRES_DB: odoo
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - oca-network
+
+  oca-ci:
+    image: ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/opt/odoo/addons/custom
+    working_dir: /opt/odoo/addons/custom
+    environment:
+      - INCLUDE=l10n_br_payment_pagarme
+      - EXCLUDE=
+      - PGHOST=postgres
+      - PGUSER=odoo
+      - PGPASSWORD=odoo
+      - PGDATABASE=odoo
+      - ADDONS_PATH=/opt/odoo/addons,/opt/odoo/addons/custom
+    networks:
+      - oca-network
+
+networks:
+  oca-network:
+    driver: bridge
+EOF
+
+# Step 2: Start PostgreSQL
+docker compose -f docker-compose-oca-test.yml up -d postgres
+
+# Step 3: Install addons using OCA tools
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_install_addons"
+
+# Step 4: Check licenses using OCA tools
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "manifestoo -d . check-licenses"
+
+# Step 5: Check development status using OCA tools
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "manifestoo -d . check-dev-status --default-dev-status=Beta"
+
+# Step 6: Initialize test database using OCA tools (requires Odoo config setup)
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "echo '[options]' > /etc/odoo.cfg && echo 'addons_path=/opt/odoo/addons,/opt/odoo/addons/custom' >> /etc/odoo.cfg && oca_init_test_database"
+
+# Step 7: Run tests using OCA tools (requires Odoo config setup)
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "echo '[options]' > /etc/odoo.cfg && echo 'addons_path=/opt/odoo/addons,/opt/odoo/addons/custom' >> /etc/odoo.cfg && oca_run_tests"
+
+# Expected successful output shows:
+# "INFO test_db odoo.tests.result: 0 failed, 0 error(s) of X tests when loading database 'test_db'"
+
+# Step 8: Cleanup
+docker compose -f docker-compose-oca-test.yml down
+rm docker-compose-oca-test.yml
+```
+
+**Test Success Criteria**:
+- Tests execute successfully with output: `0 failed, 0 error(s) of X tests when loading database 'test_db'`
+- All test modules properly discovered via explicit imports in `tests/__init__.py`
+- All mock decorators use full OCA-compatible paths: `odoo.addons.l10n_br_payment_pagarme.models.*`
+- All test files properly tagged with `@tagged("-at_install", "post_install")`
+- OCA testing tools properly configured with INCLUDE/EXCLUDE environment variables
+- Odoo configuration file correctly set with addons_path for manifestoo tools
 
 ### 4. Brazilian Market Specifics
 
@@ -1065,24 +1180,69 @@ pip install pre-commit && pre-commit install
 # MANDATORY validation after EVERY code change (Rule 1)
 pre-commit run --all-files
 
-# MANDATORY OCA testing (Rule 1) - Docker Compose approach following test.yml pattern
-# Step 1: Start PostgreSQL service
+# MANDATORY OCA testing (Rule 1) - Using official OCA tools with Docker Compose
+# Step 1: Create Docker Compose file for OCA testing
+cat > docker-compose-oca-test.yml << 'EOF'
+services:
+  postgres:
+    image: postgres:14.0
+    environment:
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
+      POSTGRES_DB: odoo
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - oca-network
+  oca-ci:
+    image: ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/opt/odoo/addons/custom
+    working_dir: /opt/odoo/addons/custom
+    environment:
+      - INCLUDE=l10n_br_payment_pagarme
+      - EXCLUDE=
+      - PGHOST=postgres
+      - PGUSER=odoo
+      - PGPASSWORD=odoo
+      - PGDATABASE=odoo
+      - ADDONS_PATH=/opt/odoo/addons,/opt/odoo/addons/custom
+    networks:
+      - oca-network
+networks:
+  oca-network:
+    driver: bridge
+EOF
+
+# Step 2: Start PostgreSQL service
 docker compose -f docker-compose-oca-test.yml up -d postgres
 
-# Step 2: Install addons with INCLUDE/EXCLUDE using Docker Compose run
+# Step 3: Install addons using OCA tools with INCLUDE/EXCLUDE environment variables
 docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_install_addons"
 
-# Step 3: Test PostgreSQL connectivity using Docker (MANDATORY after oca_install_addons)
-docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "echo 'Testing PostgreSQL connectivity...' && timeout 30 bash -c 'until pg_isready -h postgres -p 5432 -U odoo; do echo \"Waiting for PostgreSQL...\"; sleep 2; done' && echo 'PostgreSQL connection verified ✅'"
+# Step 4: Check licenses using OCA tools
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "manifestoo -d . check-licenses"
 
-# Step 4: Initialize database
-docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_init_test_database"
+# Step 5: Check development status using OCA tools
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "manifestoo -d . check-dev-status --default-dev-status=Beta"
 
-# Step 5: Run tests
-docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "oca_run_tests"
+# Step 6: Initialize test database using OCA tools (requires Odoo config setup)
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "echo '[options]' > /etc/odoo.cfg && echo 'addons_path=/opt/odoo/addons,/opt/odoo/addons/custom' >> /etc/odoo.cfg && oca_init_test_database"
 
-# Step 6: Cleanup
+# Step 7: Run tests using OCA tools (requires Odoo config setup)
+docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "echo '[options]' > /etc/odoo.cfg && echo 'addons_path=/opt/odoo/addons,/opt/odoo/addons/custom' >> /etc/odoo.cfg && oca_run_tests"
+
+# Step 8: Cleanup
 docker compose -f docker-compose-oca-test.yml down
+rm docker-compose-oca-test.yml
 
 # Repository exploration
 find l10n_br_payment_pagarme -name "*.py" | head -10    # See Python files
