@@ -6,3 +6,11 @@ odoo>=16.0a,<16.1dev
 requests
 odoo>=16.0a,<16.1dev
 requests
+odoo>=16.0a,<16.1dev
+requests
+odoo>=16.0a,<16.1dev
+requests
+odoo>=16.0a,<16.1dev
+requests
+odoo>=16.0a,<16.1dev
+requests

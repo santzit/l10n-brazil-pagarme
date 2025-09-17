@@ -53,6 +53,46 @@ class PaymentProvider(models.Model):
         )
         return
 
+    # === BUSINESS METHODS ===#
+
+    def _get_processing_values(self, processing_values):
+        """Override to add partner name to processing values.
+
+        :param dict processing_values: The processing values of the transaction.
+        :return: The updated processing values.
+        :rtype: dict
+        """
+        res = super()._get_processing_values(processing_values)
+        if self.code == "pagarme":
+            # Try to get partner information from transaction
+            tx_sudo = (
+                self.env["payment.transaction"]
+                .sudo()
+                .search(
+                    [
+                        ("reference", "=", processing_values.get("reference")),
+                        ("provider_id", "=", self.id),
+                    ],
+                    limit=1,
+                )
+            )
+
+            if tx_sudo and tx_sudo.partner_id:
+                res["partner_name"] = tx_sudo.partner_id.name or ""
+                _logger.info(
+                    "PagarMe: Added partner_name to processing_values: %s",
+                    tx_sudo.partner_id.name,
+                )
+            else:
+                _logger.info(
+                    "PagarMe: No transaction or partner found for processing_values"
+                )
+
+        return res
+
+    # Note: Partner name population is also handled by JavaScript in _prepareInlineForm
+    # This ensures the name is available both server-side and client-side
+
     # === CONSTRAINT METHODS ===#
 
     @api.constrains("pagarme_secret_key", "state")

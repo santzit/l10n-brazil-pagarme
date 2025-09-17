@@ -84,7 +84,80 @@ odoo.define("l10n_br_payment_pagarme.payment_form", (require) => {
         return Promise.resolve();
       }
       this._setPaymentFlow("direct");
+
+      // Populate card holder name from partner data with a delay to ensure DOM is ready
+      setTimeout(() => {
+        this._populateCardHolderName();
+      }, 100);
+
       return Promise.resolve();
+    },
+
+    /**
+     * Populate the card holder name field with partner name if available.
+     *
+     * @private
+     */
+    _populateCardHolderName: function () {
+      console.log("PagarMe: _populateCardHolderName called");
+
+      // Try multiple ways to find partner_id
+      let partnerIdElement = document.getElementById("partner_id");
+      if (!partnerIdElement) {
+        partnerIdElement = document.querySelector("input[name=partner_id]");
+      }
+      if (!partnerIdElement) {
+        partnerIdElement = document.querySelector("[name=partner_id]");
+      }
+
+      console.log("PagarMe: partnerIdElement found:", partnerIdElement);
+
+      if (!partnerIdElement || !partnerIdElement.value) {
+        console.log("PagarMe: No partner_id found for card holder name");
+
+        // Try to get partner info from global variables or page context
+        if (window.odoo && window.odoo.payment && window.odoo.payment.partner_id) {
+          this._fetchAndSetPartnerName(window.odoo.payment.partner_id);
+          return;
+        }
+
+        return;
+      }
+
+      const partnerId = partnerIdElement.value;
+      console.log("PagarMe: Found partner_id:", partnerId);
+      this._fetchAndSetPartnerName(partnerId);
+    },
+
+    /**
+     * Fetch partner name and set it in the card holder field.
+     *
+     * @private
+     * @param {string|number} partnerId - The partner ID
+     */
+    _fetchAndSetPartnerName: function (partnerId) {
+      // Use RPC to get partner name
+      this._rpc({
+        model: "res.partner",
+        method: "read",
+        args: [[parseInt(partnerId)], ["name"]],
+      })
+        .then((result) => {
+          console.log("PagarMe: RPC result:", result);
+          if (result && result.length > 0 && result[0].name) {
+            const cardHolderElement = document.getElementById("card_holder_name");
+            console.log("PagarMe: cardHolderElement found:", cardHolderElement);
+            if (cardHolderElement) {
+              cardHolderElement.value = result[0].name;
+              // Also trigger input event to ensure any listeners are notified
+              cardHolderElement.dispatchEvent(new Event("input", {bubbles: true}));
+              console.log("PagarMe: Set card holder name to:", result[0].name);
+            }
+          }
+        })
+        .catch((error) => {
+          console.warn("PagarMe: Failed to fetch partner name:", error);
+        });
     },
   };
   checkoutForm.include(paymentPagarmeMixin);
