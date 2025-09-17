@@ -85,68 +85,12 @@ odoo.define("l10n_br_payment_pagarme.payment_form", (require) => {
       }
       this._setPaymentFlow("direct");
 
-      // Setup card number formatting and populate card holder name from partner data with a delay to ensure DOM is ready
+      // Populate card holder name from partner data with a delay to ensure DOM is ready
       setTimeout(() => {
-        this._setupCardNumberFormatting();
         this._populateCardHolderName();
       }, 100);
 
       return Promise.resolve();
-    },
-
-    /**
-     * Setup card number formatting to apply XXXX XXXX XXXX XXXX mask.
-     *
-     * @private
-     */
-    _setupCardNumberFormatting: function () {
-      const cardNumberElement = document.getElementById("customer_input");
-      if (!cardNumberElement) {
-        console.log("PagarMe: Card number input element not found");
-        return;
-      }
-
-      // Format card number with spaces (XXXX XXXX XXXX XXXX)
-      const formatCardNumber = function (value) {
-        // Remove all non-digits
-        const digits = value.replace(/\D/g, "");
-        // Add spaces every 4 digits, limit to 16 digits
-        const formatted = digits.slice(0, 16).replace(/(\d{4})(?=\d)/g, "$1 ");
-        return formatted;
-      };
-
-      // Handle input event for real-time formatting
-      cardNumberElement.addEventListener("input", function (event) {
-        const cursorPosition = event.target.selectionStart;
-        const oldValue = event.target.value;
-        const newValue = formatCardNumber(oldValue);
-
-        // Update the value
-        event.target.value = newValue;
-
-        // Adjust cursor position to maintain user experience
-        let newCursorPosition = cursorPosition;
-        if (newValue.length > oldValue.length && newValue[cursorPosition - 1] === " ") {
-          newCursorPosition = cursorPosition + 1;
-        } else if (
-          newValue.length < oldValue.length &&
-          oldValue[cursorPosition] === " "
-        ) {
-          newCursorPosition = cursorPosition - 1;
-        }
-
-        // Set cursor position
-        event.target.setSelectionRange(newCursorPosition, newCursorPosition);
-      });
-
-      // Handle paste event
-      cardNumberElement.addEventListener("paste", function (event) {
-        setTimeout(() => {
-          event.target.value = formatCardNumber(event.target.value);
-        }, 0);
-      });
-
-      console.log("PagarMe: Card number formatting setup completed");
     },
 
     /**
