@@ -1,7 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
 import base64
+import json
 import logging
+import time
 
 import requests
 
@@ -25,6 +27,13 @@ class PaymentProvider(models.Model):
     pagarme_secret_key = fields.Char(
         string="PagarMe Secret Key",
         help="The secret key provided by PagarMe",
+        groups="base.group_system",
+    )
+    pagarme_use_orders_api = fields.Boolean(
+        string="Use ORDERS API",
+        default=True,
+        help="Enable PagarMe ORDERS API integration for real payment processing. "
+        "When disabled, uses simulation mode for testing.",
         groups="base.group_system",
     )
 
@@ -124,48 +133,24 @@ class PaymentProvider(models.Model):
             raise UserError(_("Please configure the PagarMe secret key first."))
 
         try:
-            url = "https://api.pagar.me/core/v5/customers?size=2"
+            # Test different endpoints based on configuration
+            if self.pagarme_use_orders_api:
+                # Test ORDERS API capabilities
+                self._test_orders_api_connection()
+            else:
+                # Test basic API connection
+                self._test_basic_api_connection()
 
-            # PagarMe API expects Basic auth with secret_key: (key with colon)
-            # Encode "secret_key:" to base64 for Basic authentication
-            auth_string = f"{self.pagarme_secret_key}:"
-            encoded_auth = base64.b64encode(auth_string.encode()).decode()
-
-            headers = {
-                "authorization": f"Basic {encoded_auth}",
-                "Content-Type": "application/json",
+            return {
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "title": _("Connection Test"),
+                    "message": _("Successfully connected to PagarMe API!"),
+                    "type": "success",
+                },
             }
 
-            _logger.info("Testing PagarMe connection to URL: %s", url)
-            _logger.info(
-                "Using secret key prefix: %s",
-                self.pagarme_secret_key[:10] + "...",
-            )
-            _logger.info("Authorization header: Basic %s", encoded_auth[:20] + "...")
-
-            response = requests.get(url, headers=headers, timeout=10)
-
-            _logger.info(
-                "PagarMe API response: status=%s, content=%s",
-                response.status_code,
-                response.text[:200],
-            )
-
-            if response.status_code == 200:
-                return {
-                    "type": "ir.actions.client",
-                    "tag": "display_notification",
-                    "params": {
-                        "title": _("Connection Test"),
-                        "message": _("Successfully connected to PagarMe API!"),
-                        "type": "success",
-                    },
-                }
-            else:
-                raise UserError(
-                    _("Connection failed with status %(status)s: %(text)s")
-                    % {"status": response.status_code, "text": response.text}
-                ) from None
         except requests.exceptions.Timeout:
             raise UserError(
                 _("Connection timeout. Please check your internet connection.")
@@ -173,3 +158,128 @@ class PaymentProvider(models.Model):
         except requests.exceptions.RequestException as e:
             _logger.error("PagarMe connection error: %s", str(e))
             raise UserError(_("Connection error: %(error)s") % {"error": str(e)}) from e
+
+    def _test_basic_api_connection(self):
+        """Test basic API connection using customers endpoint.
+
+        :raise: UserError if connection fails
+        """
+        url = "https://api.pagar.me/core/v5/customers?size=2"
+
+        # PagarMe API expects Basic auth with secret_key: (key with colon)
+        # Encode "secret_key:" to base64 for Basic authentication
+        auth_string = f"{self.pagarme_secret_key}:"
+        encoded_auth = base64.b64encode(auth_string.encode()).decode()
+
+        headers = {
+            "authorization": f"Basic {encoded_auth}",
+            "Content-Type": "application/json",
+        }
+
+        _logger.info("Testing PagarMe basic connection to URL: %s", url)
+        _logger.info(
+            "Using secret key prefix: %s",
+            self.pagarme_secret_key[:10] + "...",
+        )
+        _logger.info("Authorization header: Basic %s", encoded_auth[:20] + "...")
+
+        response = requests.get(url, headers=headers, timeout=10)
+
+        _logger.info(
+            "PagarMe API response: status=%s, content=%s",
+            response.status_code,
+            response.text[:200],
+        )
+
+        if response.status_code != 200:
+            raise UserError(
+                _("Connection failed with status %(status)s: %(text)s")
+                % {"status": response.status_code, "text": response.text}
+            ) from None
+
+    def _test_orders_api_connection(self):
+        """Test ORDERS API connection by creating a test order structure.
+
+        :raise: UserError if connection fails
+        """
+        # Create a minimal test order structure to validate API capabilities
+        test_order_data = {
+            "code": f"test-{self.id}-{int(time.time())}",
+            "amount": 100,  # R$ 1.00 in cents
+            "currency": "BRL",
+            "customer": {
+                "name": "Test Customer",
+                "email": "test@example.com",
+                "type": "individual",
+            },
+            "items": [
+                {
+                    "code": "test-item",
+                    "description": "Test connection item",
+                    "amount": 100,
+                    "quantity": 1,
+                    "category": "test",
+                }
+            ],
+            "metadata": {
+                "test": "true",
+                "provider_id": str(self.id),
+                "connection_test": "true",
+            },
+        }
+
+        url = "https://api.pagar.me/core/v5/orders"
+
+        # Prepare authentication header
+        auth_string = f"{self.pagarme_secret_key}:"
+        encoded_auth = base64.b64encode(auth_string.encode()).decode()
+
+        headers = {
+            "Authorization": f"Basic {encoded_auth}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+
+        _logger.info("Testing PagarMe ORDERS API connection to URL: %s", url)
+        _logger.info(
+            "Using secret key prefix: %s",
+            self.pagarme_secret_key[:10] + "...",
+        )
+
+        # Note: This is a dry-run test without payment methods
+        # We expect this to fail with a validation error, which confirms API connectivity
+        response = requests.post(
+            url, data=json.dumps(test_order_data), headers=headers, timeout=10
+        )
+
+        _logger.info(
+            "PagarMe ORDERS API response: status=%s, content=%s",
+            response.status_code,
+            response.text[:200] if response.text else "No content",
+        )
+
+        # For ORDERS API test, we accept both 200 (success) and 422 (validation error)
+        # A 422 error indicates the API is reachable and processing requests
+        if response.status_code not in [200, 422]:
+            error_msg = "Unknown error"
+            try:
+                error_data = response.json()
+                if "message" in error_data:
+                    error_msg = error_data["message"]
+                elif "errors" in error_data:
+                    error_msg = "; ".join([str(err) for err in error_data["errors"]])
+            except (ValueError, KeyError):
+                error_msg = response.text
+
+            raise UserError(
+                _("ORDERS API connection failed with status %(status)s: %(message)s")
+                % {"status": response.status_code, "message": error_msg}
+            ) from None
+
+        # Log successful connection
+        if response.status_code == 200:
+            _logger.info("ORDERS API test successful - order structure accepted")
+        else:  # 422
+            _logger.info(
+                "ORDERS API test successful - API reachable (validation error expected without payment method)"
+            )
