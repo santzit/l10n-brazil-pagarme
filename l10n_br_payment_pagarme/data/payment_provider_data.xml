@@ -1,5 +1,30 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo noupdate="1">
+
+  <!-- Create a journal for PagarMe payments -->
+  <record id="pagarme_payment_journal" model="account.journal">
+    <field name="name">PagarMe Payments</field>
+    <field name="code">PAGARME</field>
+    <field name="type">bank</field>
+    <field name="bank_account_id" eval="False" />
+    <field name="sequence">10</field>
+  </record>
+
+  <!-- Create payment method for PagarMe -->
+  <record id="pagarme_payment_method" model="account.payment.method">
+    <field name="name">PagarMe</field>
+    <field name="code">pagarme</field>
+    <field name="payment_type">inbound</field>
+  </record>
+
+  <!-- Create payment method line linking journal and payment method -->
+  <record id="pagarme_payment_method_line" model="account.payment.method.line">
+    <field name="name">PagarMe</field>
+    <field name="journal_id" ref="pagarme_payment_journal" />
+    <field name="payment_method_id" ref="pagarme_payment_method" />
+  </record>
+
+  <!-- Create the payment provider -->
   <record id="payment_provider_pagarme" model="payment.provider">
     <field name="name">Pagarme</field>
     <field name="code">pagarme</field>
@@ -9,5 +34,6 @@
       ref="l10n_br_payment_pagarme.token_inline_form"
     />
     <field name="allow_tokenization">True</field>
+    <field name="journal_id" ref="pagarme_payment_journal" />
   </record>
 </odoo>

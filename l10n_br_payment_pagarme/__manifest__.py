@@ -8,7 +8,7 @@
     "summary": "A payment provider for running fake payment flows for pagarme.",
     "author": "Odoo Community Association (OCA)",
     "website": "https://github.com/OCA/l10n-brazil",
-    "depends": ["payment"],
+    "depends": ["payment", "account"],
     "external_dependencies": {
         "python": ["requests"],
     },
