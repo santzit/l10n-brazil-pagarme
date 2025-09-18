@@ -126,7 +126,7 @@ class TestPaymentProvider(PaymentPagarmeCommon):
         mock_post.return_value = mock_response
 
         self.provider.pagarme_secret_key = "sk_test_valid_key"
-        self.provider.pagarme_use_orders_api = True
+        self.provider.pagarme_secret_key = True
         result = self.provider.action_test_pagarme_connection()
 
         # Verify the ORDERS API endpoint is called
@@ -157,7 +157,7 @@ class TestPaymentProvider(PaymentPagarmeCommon):
         mock_post.return_value = mock_response
 
         self.provider.pagarme_secret_key = "sk_test_valid_key"
-        self.provider.pagarme_use_orders_api = True
+        self.provider.pagarme_secret_key = True
         result = self.provider.action_test_pagarme_connection()
 
         # Validation error (422) should be treated as successful connection
@@ -176,7 +176,7 @@ class TestPaymentProvider(PaymentPagarmeCommon):
         mock_post.return_value = mock_response
 
         self.provider.pagarme_secret_key = "sk_test_invalid_key"
-        self.provider.pagarme_use_orders_api = True
+        self.provider.pagarme_secret_key = True
 
         with self.assertRaises(UserError) as cm:
             self.provider.action_test_pagarme_connection()
@@ -191,4 +191,4 @@ class TestPaymentProvider(PaymentPagarmeCommon):
                 "company_id": self.env.company.id,
             }
         )
-        self.assertTrue(provider.pagarme_use_orders_api)
+        self.assertTrue(provider.pagarme_secret_key)

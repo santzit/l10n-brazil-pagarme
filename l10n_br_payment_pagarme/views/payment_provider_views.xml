@@ -19,10 +19,6 @@
             attrs="{'required':[('code', '=', 'pagarme'), ('state', '!=', 'disabled')]}"
             password="True"
           />
-          <field
-            name="pagarme_use_orders_api"
-            attrs="{'invisible': [('code', '!=', 'pagarme')]}"
-          />
           <div
             colspan="2"
             attrs="{'invisible': [('code', '!=', 'pagarme')]}"

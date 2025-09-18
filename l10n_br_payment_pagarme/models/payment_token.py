@@ -1,21 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details
 
-from odoo import fields, models
+from odoo import models
 
 
 class PaymentToken(models.Model):
     _inherit = "payment.token"
-
-    pagarme_simulated_state = fields.Selection(
-        string="Simulated State",
-        help="The state in which transactions created from this token should be set.",
-        selection=[
-            ("pending", "Pending"),
-            ("done", "Confirmed"),
-            ("cancel", "Canceled"),
-            ("error", "Error"),
-        ],
-    )
 
     def _build_display_name(self, *args, should_pad=True, **kwargs):
         """Override of `payment` to build the display name without padding.

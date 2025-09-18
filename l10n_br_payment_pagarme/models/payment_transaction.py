@@ -19,48 +19,6 @@ class PaymentTransaction(models.Model):
 
     # === ACTION METHODS ===#
 
-    def action_pagarme_set_done(self):
-        """Set the state of the pagarme transaction to 'done'.
-
-        Note: self.ensure_one()
-
-        :return: None
-        """
-        self.ensure_one()
-        if self.provider_code != "pagarme":
-            return
-
-        notification_data = {"reference": self.reference, "simulated_state": "done"}
-        self._handle_notification_data("pagarme", notification_data)
-
-    def action_pagarme_set_canceled(self):
-        """Set the state of the pagarme transaction to 'cancel'.
-
-        Note: self.ensure_one()
-
-        :return: None
-        """
-        self.ensure_one()
-        if self.provider_code != "pagarme":
-            return
-
-        notification_data = {"reference": self.reference, "simulated_state": "cancel"}
-        self._handle_notification_data("pagarme", notification_data)
-
-    def action_pagarme_set_error(self):
-        """Set the state of the pagarme transaction to 'error'.
-
-        Note: self.ensure_one()
-
-        :return: None
-        """
-        self.ensure_one()
-        if self.provider_code != "pagarme":
-            return
-
-        notification_data = {"reference": self.reference, "simulated_state": "error"}
-        self._handle_notification_data("pagarme", notification_data)
-
     # === BUSINESS METHODS ===#
 
     def _send_payment_request(self):
@@ -77,25 +35,11 @@ class PaymentTransaction(models.Model):
         if not self.token_id:
             raise UserError(_("Pagarme: The transaction is not linked to a token."))
 
-        # For backward compatibility with existing test suite,
-        # check if we should use ORDERS API or simulation mode
-        if (
-            self.provider_id.pagarme_use_orders_api
-            and not self.token_id.pagarme_simulated_state
-        ):
-            # Real API mode (new ORDERS integration)
-            self._send_payment_request_to_pagarme_api()
-        else:
-            # Simulation mode (existing behavior)
-            simulated_state = self.token_id.pagarme_simulated_state
-            notification_data = {
-                "reference": self.reference,
-                "simulated_state": simulated_state,
-            }
-            self._handle_notification_data("pagarme", notification_data)
+        # Always use PagarMe ORDERS API for real payment processing
+        self._send_payment_request_to_pagarme_api()
 
     def _send_refund_request(self, **kwargs):
-        """Override of payment to simulate a refund.
+        """Override of payment to send refund request to PagarMe API.
 
         Note: self.ensure_one()
 
@@ -107,11 +51,12 @@ class PaymentTransaction(models.Model):
         if self.provider_code != "pagarme":
             return refund_tx
 
-        notification_data = {
-            "reference": refund_tx.reference,
-            "simulated_state": "done",
-        }
-        refund_tx._handle_notification_data("pagarme", notification_data)
+        # Send real refund request to PagarMe API
+        try:
+            self._send_pagarme_refund_request(refund_tx)
+        except Exception as e:
+            _logger.error("PagarMe refund request failed: %s", str(e))
+            refund_tx._set_error(_("Refund failed: %(error)s") % {"error": str(e)})
 
         return refund_tx
 
@@ -459,8 +404,158 @@ class PaymentTransaction(models.Model):
                 }
             )
 
+    def _send_pagarme_refund_request(self, refund_tx):
+        """Send refund request to PagarMe API.
+
+        :param refund_tx: The refund transaction
+        :return: None
+        """
+        if not self.provider_reference:
+            raise UserError(_("Cannot refund: No PagarMe order reference found."))
+
+        url = f"https://api.pagar.me/core/v5/orders/{self.provider_reference}/refunds"
+        
+        # Prepare authentication header
+        auth_string = f"{self.provider_id.pagarme_secret_key}:"
+        encoded_auth = base64.b64encode(auth_string.encode()).decode()
+
+        headers = {
+            "Authorization": f"Basic {encoded_auth}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+
+        refund_data = {
+            "amount": int(refund_tx.amount * 100),  # Convert to cents
+            "metadata": {
+                "odoo_refund_transaction_id": str(refund_tx.id),
+                "odoo_original_transaction_id": str(self.id),
+                "refund_reason": "Customer request",
+            },
+        }
+
+        _logger.info(
+            "PagarMe refund request: Order=%s, Amount=%s",
+            self.provider_reference,
+            refund_data["amount"],
+        )
+
+        response = requests.post(
+            url, data=json.dumps(refund_data), headers=headers, timeout=30
+        )
+
+        if response.status_code == 200:
+            refund_tx._set_done()
+            _logger.info("PagarMe refund successful for transaction %s", refund_tx.reference)
+        else:
+            error_msg = response.text
+            try:
+                error_data = response.json()
+                if "message" in error_data:
+                    error_msg = error_data["message"]
+            except (ValueError, KeyError):
+                pass
+            raise UserError(
+                _("PagarMe refund failed (%(status)s): %(message)s")
+                % {"status": response.status_code, "message": error_msg}
+            )
+
+    def _send_pagarme_capture_request(self):
+        """Send capture request to PagarMe API.
+
+        :return: None
+        """
+        if not self.provider_reference:
+            raise UserError(_("Cannot capture: No PagarMe order reference found."))
+
+        url = f"https://api.pagar.me/core/v5/orders/{self.provider_reference}/charges"
+        
+        # Prepare authentication header
+        auth_string = f"{self.provider_id.pagarme_secret_key}:"
+        encoded_auth = base64.b64encode(auth_string.encode()).decode()
+
+        headers = {
+            "Authorization": f"Basic {encoded_auth}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+
+        # Get charges for the order to capture them
+        response = requests.get(url, headers=headers, timeout=30)
+        
+        if response.status_code == 200:
+            charges = response.json().get("data", [])
+            for charge in charges:
+                if charge.get("status") == "pending":
+                    charge_id = charge.get("id")
+                    capture_url = f"https://api.pagar.me/core/v5/charges/{charge_id}/capture"
+                    
+                    capture_response = requests.post(
+                        capture_url, 
+                        data=json.dumps({"amount": charge.get("amount")}), 
+                        headers=headers, 
+                        timeout=30
+                    )
+                    
+                    if capture_response.status_code == 200:
+                        self._set_done()
+                        _logger.info("PagarMe capture successful for transaction %s", self.reference)
+                    else:
+                        raise UserError(_("PagarMe capture failed"))
+        else:
+            raise UserError(_("Failed to get charges for capture"))
+
+    def _send_pagarme_void_request(self):
+        """Send void request to PagarMe API.
+
+        :return: None
+        """
+        if not self.provider_reference:
+            raise UserError(_("Cannot void: No PagarMe order reference found."))
+
+        url = f"https://api.pagar.me/core/v5/orders/{self.provider_reference}"
+        
+        # Prepare authentication header
+        auth_string = f"{self.provider_id.pagarme_secret_key}:"
+        encoded_auth = base64.b64encode(auth_string.encode()).decode()
+
+        headers = {
+            "Authorization": f"Basic {encoded_auth}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+
+        # Cancel the order
+        cancel_data = {
+            "status": "canceled",
+            "metadata": {
+                "void_reason": "Customer request",
+                "odoo_transaction_id": str(self.id),
+            },
+        }
+
+        response = requests.patch(
+            url, data=json.dumps(cancel_data), headers=headers, timeout=30
+        )
+
+        if response.status_code == 200:
+            self._set_canceled()
+            _logger.info("PagarMe void successful for transaction %s", self.reference)
+        else:
+            error_msg = response.text
+            try:
+                error_data = response.json()
+                if "message" in error_data:
+                    error_msg = error_data["message"]
+            except (ValueError, KeyError):
+                pass
+            raise UserError(
+                _("PagarMe void failed (%(status)s): %(message)s")
+                % {"status": response.status_code, "message": error_msg}
+            )
+
     def _send_capture_request(self):
-        """Override of payment to simulate a capture request.
+        """Override of payment to send capture request to PagarMe API.
 
         Note: self.ensure_one()
 
@@ -470,15 +565,15 @@ class PaymentTransaction(models.Model):
         if self.provider_code != "pagarme":
             return
 
-        notification_data = {
-            "reference": self.reference,
-            "simulated_state": "done",
-            "manual_capture": True,  # Distinguish manual captures from regular ones.
-        }
-        self._handle_notification_data("pagarme", notification_data)
+        # Send real capture request to PagarMe API
+        try:
+            self._send_pagarme_capture_request()
+        except Exception as e:
+            _logger.error("PagarMe capture request failed: %s", str(e))
+            self._set_error(_("Capture failed: %(error)s") % {"error": str(e)})
 
     def _send_void_request(self):
-        """Override of payment to simulate a void request.
+        """Override of payment to send void request to PagarMe API.
 
         Note: self.ensure_one()
 
@@ -488,8 +583,12 @@ class PaymentTransaction(models.Model):
         if self.provider_code != "pagarme":
             return
 
-        notification_data = {"reference": self.reference, "simulated_state": "cancel"}
-        self._handle_notification_data("pagarme", notification_data)
+        # Send real void request to PagarMe API
+        try:
+            self._send_pagarme_void_request()
+        except Exception as e:
+            _logger.error("PagarMe void request failed: %s", str(e))
+            self._set_error(_("Void failed: %(error)s") % {"error": str(e)})
 
     def _get_tx_from_notification_data(self, provider_code, notification_data):
         """Override of payment to find the transaction based on pagarme data.
@@ -515,11 +614,11 @@ class PaymentTransaction(models.Model):
         return tx
 
     def _process_notification_data(self, notification_data):
-        """Override of payment to process the transaction based on pagarme data.
+        """Override of payment to process the transaction based on PagarMe webhook data.
 
         Note: self.ensure_one()
 
-        :param dict notification_data: The pagarme notification data
+        :param dict notification_data: The PagarMe webhook notification data
         :return: None
         :raise: ValidationError if inconsistent data were received
         """
@@ -527,23 +626,22 @@ class PaymentTransaction(models.Model):
         if self.provider_code != "pagarme":
             return
 
-        self.provider_reference = f"pagarme-{self.reference}"
+        # Extract order ID from webhook data
+        order_id = notification_data.get("order_id") or notification_data.get("id")
+        if order_id:
+            self.provider_reference = order_id
 
         if self.tokenize:
-            # The reasons why we immediately tokenize the transaction regardless of
-            # the state rather than waiting for the payment method to be validated
-            # ('authorized' or 'done') like the other payment providers do are:
-            # - To save the simulated state and payment details on the token while
-            #   we have them.
-            # - To allow customers to create tokens whose transactions will always
-            #   end up in the said simulated state.
+            # Create a token from the payment data if tokenization is requested
             self._pagarme_tokenize_from_notification_data(notification_data)
 
-        state = notification_data["simulated_state"]
-        if state == "pending":
+        # Process the webhook status to determine transaction state
+        status = notification_data.get("status", "").lower()
+        
+        if status == "pending":
             self._set_pending()
-        elif state == "done":
-            if self.capture_manually and not notification_data.get("manual_capture"):
+        elif status in ["paid", "authorized"]:
+            if self.capture_manually and status == "authorized":
                 self._set_authorized()
             else:
                 self._set_done()
@@ -552,12 +650,15 @@ class PaymentTransaction(models.Model):
                 # transaction from the portal.
                 if self.operation == "refund":
                     self.env.ref("payment.cron_post_process_payment_tx")._trigger()
-        elif state == "cancel":
+        elif status in ["canceled", "failed"]:
             self._set_canceled()
-        else:  # Simulate an error state.
-            self._set_error(
-                _("You selected the following pagarme payment status: %s", state)
-            )
+        elif status == "error":
+            error_msg = notification_data.get("error_message", "Payment failed")
+            self._set_error(_("PagarMe payment error: %s", error_msg))
+        else:
+            # Unknown status - log and set as error
+            _logger.warning("Unknown PagarMe status received: %s", status)
+            self._set_error(_("Unknown payment status received: %s", status))
 
     def _pagarme_tokenize_from_notification_data(self, notification_data):
         """Create a new token based on the notification data.
@@ -569,15 +670,27 @@ class PaymentTransaction(models.Model):
         """
         self.ensure_one()
 
-        state = notification_data["simulated_state"]
+    def _pagarme_tokenize_from_notification_data(self, notification_data):
+        """Create a new token based on the PagarMe webhook notification data.
+
+        Note: self.ensure_one()
+
+        :param dict notification_data: The PagarMe webhook notification data.
+        :return: None
+        """
+        self.ensure_one()
+
+        # Extract payment details from webhook
+        payment_details = notification_data.get("payment_details", "Card ending in ****")
+        card_id = notification_data.get("card_id")
+        
         token = self.env["payment.token"].create(
             {
                 "provider_id": self.provider_id.id,
-                "payment_details": notification_data["payment_details"],
+                "payment_details": payment_details,
                 "partner_id": self.partner_id.id,
-                "provider_ref": "fake provider reference",
+                "provider_ref": card_id or f"token_{self.id}",
                 "verified": True,
-                "pagarme_simulated_state": state,
             }
         )
         self.write(

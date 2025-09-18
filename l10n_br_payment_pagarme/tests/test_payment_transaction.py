@@ -17,7 +17,7 @@ class TestPaymentTransaction(PaymentPagarmeCommon, PaymentHttpCommon):
         notification data indicate a pending payment."""
         tx = self._create_transaction("direct")
         tx._process_notification_data(
-            dict(self.notification_data, simulated_state="pending")
+            dict(self.notification_data, status="pending")
         )
         self.assertEqual(tx.state, "pending")
 
@@ -42,7 +42,7 @@ class TestPaymentTransaction(PaymentPagarmeCommon, PaymentHttpCommon):
         data indicate an unsuccessful payment."""
         tx = self._create_transaction("direct")
         tx._process_notification_data(
-            dict(self.notification_data, simulated_state="cancel")
+            dict(self.notification_data, status="canceled")
         )
         self.assertEqual(tx.state, "cancel")
 
@@ -51,7 +51,7 @@ class TestPaymentTransaction(PaymentPagarmeCommon, PaymentHttpCommon):
         data indicate an error during the payment."""
         tx = self._create_transaction("direct")
         tx._process_notification_data(
-            dict(self.notification_data, simulated_state="error")
+            dict(self.notification_data, status="error", error_message="Payment failed")
         )
         self.assertEqual(tx.state, "error")
 
@@ -65,32 +65,6 @@ class TestPaymentTransaction(PaymentPagarmeCommon, PaymentHttpCommon):
         ) as tokenize_mock:
             tx._process_notification_data(self.notification_data)
         self.assertEqual(tokenize_mock.call_count, 1)
-
-    @mute_logger("odoo.addons.l10n_br_payment_pagarme.models.payment_transaction")
-    def test_processing_notification_data_propagates_simulated_state_to_token(self):
-        """Test that the simulated state of the notification data is set on the
-        token when processing notification data."""
-        for counter, state in enumerate(["pending", "done", "cancel", "error"]):
-            tx = self._create_transaction(
-                "direct", reference=f"{self.reference}-{counter}", tokenize=True
-            )
-            tx._process_notification_data(
-                dict(self.notification_data, simulated_state=state)
-            )
-            self.assertEqual(tx.token_id.pagarme_simulated_state, state)
-
-    def test_making_a_payment_request_propagates_token_simulated_state_to_transaction(
-        self,
-    ):
-        """Test that the simulated state of the token is set on the transaction
-        when making a payment request."""
-        for counter, state in enumerate(["pending", "done", "cancel", "error"]):
-            tx = self._create_transaction(
-                "direct", reference=f"{self.reference}-{counter}"
-            )
-            tx.token_id = self._create_token(pagarme_simulated_state=state)
-            tx._send_payment_request()
-            self.assertEqual(tx.state, tx.token_id.pagarme_simulated_state)
 
     @patch(
         "odoo.addons.l10n_br_payment_pagarme.models.payment_transaction.requests.post"
@@ -113,13 +87,10 @@ class TestPaymentTransaction(PaymentPagarmeCommon, PaymentHttpCommon):
         }
         mock_post.return_value = mock_response
 
-        # Enable ORDERS API
-        self.provider.pagarme_use_orders_api = True
+        # Configure provider for API testing
         self.provider.pagarme_secret_key = "sk_test_123456789"  # Add test secret key
         tx = self._create_transaction("direct")
-        # Create a token without simulated state to trigger API mode
         tx.token_id = self._create_token()
-        tx.token_id.pagarme_simulated_state = False  # Clear simulated state to trigger API mode
 
         tx._send_payment_request()
 
@@ -147,12 +118,10 @@ class TestPaymentTransaction(PaymentPagarmeCommon, PaymentHttpCommon):
         }
         mock_post.return_value = mock_response
 
-        # Enable ORDERS API
-        self.provider.pagarme_use_orders_api = True
+        # Configure provider for API testing
         self.provider.pagarme_secret_key = "sk_test_123456789"  # Add test secret key
         tx = self._create_transaction("direct")
         tx.token_id = self._create_token()
-        tx.token_id.pagarme_simulated_state = False  # Clear simulated state to trigger API mode
 
         tx._send_payment_request()
 
@@ -172,33 +141,18 @@ class TestPaymentTransaction(PaymentPagarmeCommon, PaymentHttpCommon):
         mock_response.json.return_value = {"message": "Invalid payment data"}
         mock_post.return_value = mock_response
 
-        # Enable ORDERS API
-        self.provider.pagarme_use_orders_api = True
+        # Configure provider for API testing
         self.provider.pagarme_secret_key = "sk_test_123456789"  # Add test secret key
         tx = self._create_transaction("direct")
         tx.token_id = self._create_token()
-        tx.token_id.pagarme_simulated_state = False  # Clear simulated state to trigger API mode
 
         with self.assertRaises(UserError) as cm:
             tx._send_payment_request()
         self.assertIn("PagarMe API error (400)", str(cm.exception))
 
-    def test_orders_api_disabled_uses_simulation(self):
-        """Test that when ORDERS API is disabled, simulation mode is used."""
-        # Disable ORDERS API
-        self.provider.pagarme_use_orders_api = False
-        tx = self._create_transaction("direct")
-        tx.token_id = self._create_token(pagarme_simulated_state="done")
-
-        tx._send_payment_request()
-
-        # Should use simulation mode and set state based on token
-        self.assertEqual(tx.state, "done")
-
     def test_orders_api_data_preparation(self):
         """Test ORDERS API data preparation methods."""
-        # Enable ORDERS API
-        self.provider.pagarme_use_orders_api = True
+        # Configure provider for API testing
         self.provider.pagarme_secret_key = "sk_test_123456789"  # Add test secret key
         tx = self._create_transaction("direct")
         tx.token_id = self._create_token()

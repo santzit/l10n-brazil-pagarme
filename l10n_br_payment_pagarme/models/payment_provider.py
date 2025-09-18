@@ -29,13 +29,6 @@ class PaymentProvider(models.Model):
         help="The secret key provided by PagarMe",
         groups="base.group_system",
     )
-    pagarme_use_orders_api = fields.Boolean(
-        string="Use ORDERS API",
-        default=True,
-        help="Enable PagarMe ORDERS API integration for real payment processing. "
-        "When disabled, uses simulation mode for testing.",
-        groups="base.group_system",
-    )
 
     # === COMPUTE METHODS ===#
 
@@ -127,26 +120,21 @@ class PaymentProvider(models.Model):
     # === ACTION METHODS ===#
 
     def action_test_pagarme_connection(self):
-        """Test connection to PagarMe API using the secret key."""
+        """Test connection to PagarMe ORDERS API using the secret key."""
         self.ensure_one()
         if not self.pagarme_secret_key:
             raise UserError(_("Please configure the PagarMe secret key first."))
 
         try:
-            # Test different endpoints based on configuration
-            if self.pagarme_use_orders_api:
-                # Test ORDERS API capabilities
-                self._test_orders_api_connection()
-            else:
-                # Test basic API connection
-                self._test_basic_api_connection()
+            # Test ORDERS API capabilities
+            self._test_orders_api_connection()
 
             return {
                 "type": "ir.actions.client",
                 "tag": "display_notification",
                 "params": {
                     "title": _("Connection Test"),
-                    "message": _("Successfully connected to PagarMe API!"),
+                    "message": _("Successfully connected to PagarMe ORDERS API!"),
                     "type": "success",
                 },
             }
@@ -158,44 +146,6 @@ class PaymentProvider(models.Model):
         except requests.exceptions.RequestException as e:
             _logger.error("PagarMe connection error: %s", str(e))
             raise UserError(_("Connection error: %(error)s") % {"error": str(e)}) from e
-
-    def _test_basic_api_connection(self):
-        """Test basic API connection using customers endpoint.
-
-        :raise: UserError if connection fails
-        """
-        url = "https://api.pagar.me/core/v5/customers?size=2"
-
-        # PagarMe API expects Basic auth with secret_key: (key with colon)
-        # Encode "secret_key:" to base64 for Basic authentication
-        auth_string = f"{self.pagarme_secret_key}:"
-        encoded_auth = base64.b64encode(auth_string.encode()).decode()
-
-        headers = {
-            "authorization": f"Basic {encoded_auth}",
-            "Content-Type": "application/json",
-        }
-
-        _logger.info("Testing PagarMe basic connection to URL: %s", url)
-        _logger.info(
-            "Using secret key prefix: %s",
-            self.pagarme_secret_key[:10] + "...",
-        )
-        _logger.info("Authorization header: Basic %s", encoded_auth[:20] + "...")
-
-        response = requests.get(url, headers=headers, timeout=10)
-
-        _logger.info(
-            "PagarMe API response: status=%s, content=%s",
-            response.status_code,
-            response.text[:200],
-        )
-
-        if response.status_code != 200:
-            raise UserError(
-                _("Connection failed with status %(status)s: %(text)s")
-                % {"status": response.status_code, "text": response.text}
-            ) from None
 
     def _test_orders_api_connection(self):
         """Test ORDERS API connection by creating a test order structure.

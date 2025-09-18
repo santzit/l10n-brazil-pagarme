@@ -10,7 +10,7 @@ odoo.define("l10n_br_payment_pagarme.payment_form", (require) => {
     //--------------------------------------------------------------------------
 
     /**
-     * Simulate a feedback from a payment provider and redirect the customer to the status page.
+     * Process a PagarMe payment and redirect the customer to the status page.
      *
      * @override method from payment.payment_form_mixin
      * @private
@@ -25,9 +25,7 @@ odoo.define("l10n_br_payment_pagarme.payment_form", (require) => {
       }
 
       const customerInput = document.getElementById("customer_input").value;
-      const simulatedPaymentState = document.getElementById(
-        "simulated_payment_state"
-      ).value;
+      const installments = document.getElementById("installments")?.value || "1";
 
       // Collect enhanced form data with null safety
       let cardHolderName = "";
@@ -51,8 +49,10 @@ odoo.define("l10n_br_payment_pagarme.payment_form", (require) => {
         // Silently continue if elements are not found
       }
 
+      // Process payment directly through the payment flow
+      // The backend will handle the real API call to PagarMe
       return this._rpc({
-        route: "/payment/pagarme/simulate_payment",
+        route: "/payment/transaction",
         params: {
           reference: processingValues.reference,
           payment_details: customerInput,
@@ -60,7 +60,8 @@ odoo.define("l10n_br_payment_pagarme.payment_form", (require) => {
           cardholder_document: cardholderDocument,
           card_expiry: cardExpiry,
           card_cvv: cardCvv,
-          simulated_state: simulatedPaymentState,
+          installments: installments,
+          provider_id: providerId,
         },
       }).then(() => {
         window.location = "/payment/status";
