@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:14.0
+    environment:
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
+      POSTGRES_DB: odoo
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - oca-network
+
+  oca-ci:
+    image: ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/opt/odoo/addons/custom
+    working_dir: /opt/odoo/addons/custom
+    environment:
+      - INCLUDE=l10n_br_payment_pagarme
+      - EXCLUDE=
+      - PGHOST=postgres
+      - PGUSER=odoo
+      - PGPASSWORD=odoo
+      - PGDATABASE=odoo
+      - ADDONS_PATH=/opt/odoo/addons,/opt/odoo/addons/custom
+    networks:
+      - oca-network
+
+networks:
+  oca-network:
+    driver: bridge

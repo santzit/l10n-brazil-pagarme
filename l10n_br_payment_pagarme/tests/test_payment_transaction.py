@@ -115,10 +115,11 @@ class TestPaymentTransaction(PaymentPagarmeCommon, PaymentHttpCommon):
 
         # Enable ORDERS API
         self.provider.pagarme_use_orders_api = True
+        self.provider.pagarme_secret_key = "sk_test_123456789"  # Add test secret key
         tx = self._create_transaction("direct")
         # Create a token without simulated state to trigger API mode
         tx.token_id = self._create_token()
-        tx.token_id.pagarme_simulated_state = False  # Remove simulated state
+        tx.token_id.pagarme_simulated_state = False  # Clear simulated state to trigger API mode
 
         tx._send_payment_request()
 
@@ -148,9 +149,10 @@ class TestPaymentTransaction(PaymentPagarmeCommon, PaymentHttpCommon):
 
         # Enable ORDERS API
         self.provider.pagarme_use_orders_api = True
+        self.provider.pagarme_secret_key = "sk_test_123456789"  # Add test secret key
         tx = self._create_transaction("direct")
         tx.token_id = self._create_token()
-        tx.token_id.pagarme_simulated_state = False
+        tx.token_id.pagarme_simulated_state = False  # Clear simulated state to trigger API mode
 
         tx._send_payment_request()
 
@@ -172,9 +174,10 @@ class TestPaymentTransaction(PaymentPagarmeCommon, PaymentHttpCommon):
 
         # Enable ORDERS API
         self.provider.pagarme_use_orders_api = True
+        self.provider.pagarme_secret_key = "sk_test_123456789"  # Add test secret key
         tx = self._create_transaction("direct")
         tx.token_id = self._create_token()
-        tx.token_id.pagarme_simulated_state = False
+        tx.token_id.pagarme_simulated_state = False  # Clear simulated state to trigger API mode
 
         with self.assertRaises(UserError) as cm:
             tx._send_payment_request()
@@ -196,6 +199,7 @@ class TestPaymentTransaction(PaymentPagarmeCommon, PaymentHttpCommon):
         """Test ORDERS API data preparation methods."""
         # Enable ORDERS API
         self.provider.pagarme_use_orders_api = True
+        self.provider.pagarme_secret_key = "sk_test_123456789"  # Add test secret key
         tx = self._create_transaction("direct")
         tx.token_id = self._create_token()
 

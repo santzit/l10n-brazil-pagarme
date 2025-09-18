@@ -79,8 +79,9 @@ class PaymentTransaction(models.Model):
 
         # For backward compatibility with existing test suite,
         # check if we should use ORDERS API or simulation mode
-        if self.provider_id.pagarme_use_orders_api and not hasattr(
-            self.token_id, "pagarme_simulated_state"
+        if (
+            self.provider_id.pagarme_use_orders_api
+            and not self.token_id.pagarme_simulated_state
         ):
             # Real API mode (new ORDERS integration)
             self._send_payment_request_to_pagarme_api()
@@ -248,7 +249,7 @@ class PaymentTransaction(models.Model):
         """
         payment_data = []
 
-        if self.token_id and hasattr(self.token_id, "provider_ref"):
+        if self.token_id and getattr(self.token_id, "provider_ref", None):
             # Use existing token/card
             payment_data.append(
                 {
@@ -261,6 +262,23 @@ class PaymentTransaction(models.Model):
                     "metadata": {
                         "token_id": str(self.token_id.id),
                         "payment_details": self.token_id.payment_details or "",
+                    },
+                }
+            )
+        elif self.token_id:
+            # Token exists but no provider_ref - create a test payment method
+            payment_data.append(
+                {
+                    "payment_method": "credit_card",
+                    "amount": int(self.amount * 100),  # Convert to cents
+                    "credit_card": {
+                        "card_id": f"test_card_{self.token_id.id}",
+                        "installments": 1,  # Default to single payment
+                    },
+                    "metadata": {
+                        "token_id": str(self.token_id.id),
+                        "payment_details": self.token_id.payment_details or "",
+                        "test_mode": "true",
                     },
                 }
             )
