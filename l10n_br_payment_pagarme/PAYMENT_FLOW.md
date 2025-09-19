@@ -1,23 +1,44 @@
-# PagarMe Payment Provider Integration Flow
+# PagarMe ORDERS API Integration - Payment Flow Documentation
 
-This document describes the integration flow between Odoo and PagarMe payment provider
-using the ORDERS API.
+This document provides comprehensive Mermaid flowcharts showing the integration between ODOO and PagarMe payment provider using the ORDERS API.
 
-## Payment Processing Flow
+## 1. Payment Processing Flow
 
 ```mermaid
 flowchart TD
-    A[Customer initiates payment] --> B{Payment provider configured?}
-    B -->|No| X[Error: Provider not configured]
-    B -->|Yes| C[Create payment transaction]
-
-    C --> D{Use ORDERS API?}
-    D -->|No| E[Simulation mode]
-    D -->|Yes| F[Real API mode]
-
-    E --> E1[Use simulated state from token]
-    E1 --> E2[Process notification data]
-    E2 --> Z[Update transaction state]
+    A[Customer Initiates Payment] --> B[ODOO Payment Form]
+    B --> C{Payment Method?}
+    
+    C -->|Credit Card| D[Enter Card Details<br/>- Card Number<br/>- Holder Name<br/>- Expiry<br/>- CVV<br/>- CPF/CNPJ<br/>- Installments]
+    
+    D --> E[Submit Payment Form]
+    E --> F[ODOO Creates Payment Transaction]
+    F --> G[_send_payment_request Method]
+    
+    G --> H[_send_payment_request_to_pagarme_api]
+    H --> I[_prepare_pagarme_order_data]
+    
+    I --> J[Prepare Order Components:<br/>- Customer Data<br/>- Order Items<br/>- Payment Data<br/>- Shipping Data]
+    
+    J --> K[_make_pagarme_api_request]
+    K --> L[HTTP POST to<br/>api.pagar.me/core/v5/orders]
+    
+    L --> M{API Response?}
+    
+    M -->|Success 200/201| N[_process_pagarme_api_response]
+    M -->|Error 4xx/5xx| O[Handle API Error<br/>Log Error Details<br/>Update Transaction State]
+    
+    N --> P[Extract Order ID & Status]
+    P --> Q[Update Transaction in ODOO]
+    Q --> R[Set Transaction State<br/>- pending<br/>- authorized<br/>- done<br/>- error]
+    
+    R --> S[Webhook Endpoint<br/>/payment/pagarme/webhook]
+    S --> T[Process Payment Status Updates]
+    T --> U[Final Transaction State]
+    
+    O --> V[Display Error to Customer]
+    U --> W[Payment Complete]
+    V --> X[Payment Failed]
 
     F --> F1[Validate API credentials]
     F1 --> F2{Credentials valid?}
@@ -26,251 +47,185 @@ flowchart TD
 
     F3 --> F4[Prepare customer data]
     F4 --> F5[Prepare order items]
-    F5 --> F6[Prepare payment data]
-    F6 --> F7[Add shipping info if available]
-
-    F7 --> G[Send ORDERS API request]
-    G --> H{API response successful?}
-    H -->|No| I[Handle API error]
-    H -->|Yes| J[Process API response]
-
-    I --> I1[Log error details]
-    I1 --> I2[Set transaction to error state]
-    I2 --> Z
-
-    J --> J1[Extract order ID and status]
-    J1 --> J2{Order status?}
-    J2 -->|paid| K[Set transaction to done]
-    J2 -->|pending| L[Set transaction to pending]
-    J2 -->|failed/canceled| M[Set transaction to error]
-    J2 -->|other| N[Set transaction to pending]
-
-    K --> O[Post success message]
-    L --> P[Post pending message]
-    M --> Q[Post error message]
-    N --> R[Post status message]
-
-    O --> Z
-    P --> Z
-    Q --> Z
-    R --> Z
-
-    Z --> S[Trigger post-processing if needed]
-    S --> T[End]
 ```
 
-## ODOO Payment Framework Integration
+## 2. ODOO Payment Framework Integration
 
 ```mermaid
-flowchart LR
-    subgraph "Odoo Core"
-        A[payment.provider] --> B[payment.transaction]
-        B --> C[payment.token]
-    end
-
-    subgraph "PagarMe Module"
-        D[PaymentProvider] --> E[PaymentTransaction]
-        E --> F[PaymentToken]
-
-        D -.extends.-> A
-        E -.extends.-> B
-        F -.extends.-> C
-    end
-
-    subgraph "PagarMe API"
-        G[ORDERS Endpoint]
-        H[Customers Endpoint]
-        I[Charges Endpoint]
-    end
-
-    E -->|Create Order| G
-    E -->|Customer Data| H
-    E -->|Process Charges| I
-
-    G -->|Order Response| E
-    H -->|Customer Response| E
-    I -->|Charge Response| E
+flowchart TD
+    A[payment.provider Model] --> B[PaymentProvider Class<br/>l10n_br_payment_pagarme]
+    
+    B --> C[Configuration Fields:<br/>- pagarme_public_key<br/>- pagarme_secret_key<br/>- state (test/enabled)]
+    
+    C --> D[Connection Testing:<br/>- action_test_pagarme_connection<br/>- _test_orders_api_connection]
+    
+    A --> E[payment.transaction Model] --> F[PaymentTransaction Class<br/>l10n_br_payment_pagarme]
+    
+    F --> G[Payment Methods:<br/>- _send_payment_request<br/>- _send_refund_request<br/>- _send_capture_request<br/>- _send_void_request]
+    
+    G --> H[PagarMe API Integration:<br/>- _send_payment_request_to_pagarme_api<br/>- _prepare_pagarme_order_data<br/>- _make_pagarme_api_request<br/>- _process_pagarme_api_response]
+    
+    A --> I[payment.token Model] --> J[PaymentToken Class<br/>l10n_br_payment_pagarme]
+    
+    J --> K[Token Storage:<br/>- Card Brand<br/>- Last 4 Digits<br/>- Expiry Date<br/>- Provider Reference]
+    
+    L[Controller<br/>PaymentPagarmeController] --> M[Webhook Endpoint:<br/>/payment/pagarme/webhook]
+    
+    M --> N[Process Real-time<br/>Payment Notifications]
+    N --> O[Update Transaction Status]
 ```
 
-## Method Flow Diagram
+## 3. Method Sequence Flow
 
 ```mermaid
 sequenceDiagram
-    participant Customer
-    participant Odoo
-    participant PaymentProvider
-    participant PaymentTransaction
-    participant PagarMeAPI
-
-    Customer->>Odoo: Initiate payment
-    Odoo->>PaymentProvider: Get processing values
-    PaymentProvider->>PaymentProvider: Add partner name to values
-
-    Odoo->>PaymentTransaction: Create transaction
-    PaymentTransaction->>PaymentTransaction: Validate token exists
-
-    alt ORDERS API enabled
-        PaymentTransaction->>PaymentTransaction: _send_payment_request_to_pagarme_api()
-        PaymentTransaction->>PaymentTransaction: _prepare_pagarme_order_data()
-        PaymentTransaction->>PaymentTransaction: _prepare_customer_data()
-        PaymentTransaction->>PaymentTransaction: _prepare_order_items()
-        PaymentTransaction->>PaymentTransaction: _prepare_payment_data()
-        PaymentTransaction->>PaymentTransaction: _prepare_shipping_data()
-
-        PaymentTransaction->>PagarMeAPI: POST /core/v5/orders
-        PagarMeAPI-->>PaymentTransaction: Order response (JSON)
-
-        PaymentTransaction->>PaymentTransaction: _process_pagarme_api_response()
-        PaymentTransaction->>PaymentTransaction: Update transaction state
-        PaymentTransaction->>PaymentTransaction: Post charge messages
-    else Simulation mode
-        PaymentTransaction->>PaymentTransaction: Use simulated state
-        PaymentTransaction->>PaymentTransaction: _handle_notification_data()
-    end
-
-    PaymentTransaction-->>Odoo: Transaction updated
-    Odoo-->>Customer: Payment result
+    participant C as Customer
+    participant O as ODOO
+    participant P as PaymentTransaction
+    participant A as PagarMe API
+    participant W as Webhook
+    
+    C->>O: Submit Payment Form
+    O->>P: Create Transaction Record
+    P->>P: _send_payment_request()
+    P->>P: _send_payment_request_to_pagarme_api()
+    
+    P->>P: _prepare_pagarme_order_data()
+    Note over P: Prepare customer, items, payment data
+    
+    P->>P: _prepare_customer_data()
+    Note over P: CPF/CNPJ, address, phone
+    
+    P->>P: _prepare_order_items()
+    Note over P: Transaction amount, description
+    
+    P->>P: _prepare_payment_data()
+    Note over P: Credit card, installments
+    
+    P->>P: _prepare_shipping_data()
+    Note over P: Brazilian address format
+    
+    P->>P: _make_pagarme_api_request()
+    P->>A: POST /core/v5/orders
+    Note over A: Process payment with<br/>Brazilian regulations
+    
+    A->>P: Response (order_id, status)
+    P->>P: _process_pagarme_api_response()
+    P->>O: Update Transaction State
+    
+    A->>W: Webhook Notification
+    W->>P: Update Payment Status
+    P->>O: Final State Update
+    O->>C: Payment Result
 ```
 
-## API Data Flow
-
-```mermaid
-flowchart TD
-    subgraph "Order Data Preparation"
-        A[Transaction Data] --> B[Order Structure]
-        B --> C[Customer Info]
-        B --> D[Order Items]
-        B --> E[Payment Methods]
-        B --> F[Shipping Info]
-        B --> G[Metadata]
-    end
-
-    subgraph "Customer Data"
-        C --> C1[Name & Email]
-        C --> C2[Phone Numbers]
-        C --> C3[CPF/CNPJ Document]
-        C --> C4[Address]
-    end
-
-    subgraph "Payment Data"
-        E --> E1[Credit Card Token]
-        E --> E2[Amount in cents]
-        E --> E3[Installments]
-        E --> E4[Payment Metadata]
-    end
-
-    subgraph "API Request"
-        B --> H[JSON Payload]
-        H --> I[Authorization Header]
-        H --> J[Content-Type: application/json]
-        I --> K[Basic Auth with secret key]
-    end
-
-    subgraph "API Response Processing"
-        L[PagarMe Response] --> M[Order ID]
-        L --> N[Order Status]
-        L --> O[Charges Array]
-
-        N --> N1{Status Type}
-        N1 -->|paid| P[Set Done]
-        N1 -->|pending| Q[Set Pending]
-        N1 -->|failed/canceled| R[Set Error]
-
-        O --> O1[Process Each Charge]
-        O1 --> O2[Log Charge Details]
-        O1 --> O3[Post Audit Messages]
-    end
-```
-
-## Error Handling Flow
-
-```mermaid
-flowchart TD
-    A[API Request] --> B{Request Success?}
-    B -->|No| C[Network/Connection Error]
-    B -->|Yes| D{HTTP Status 200?}
-
-    C --> C1[Log connection error]
-    C1 --> C2[Raise UserError with details]
-
-    D -->|No| E[API Error Response]
-    D -->|Yes| F{Valid JSON Response?}
-
-    E --> E1[Parse error message]
-    E1 --> E2[Log API error]
-    E2 --> E3[Raise UserError with API details]
-
-    F -->|No| G[Invalid response format]
-    F -->|Yes| H[Process successful response]
-
-    G --> G1[Log parse error]
-    G1 --> G2[Raise UserError - Invalid response]
-
-    H --> I[Update transaction state]
-    I --> J[Log success details]
-    J --> K[Post audit messages]
-```
-
-## Configuration Flow
+## 4. API Data Flow
 
 ```mermaid
 flowchart LR
-    subgraph "Provider Configuration"
-        A[PagarMe Public Key] --> D[Connection Test]
-        B[PagarMe Secret Key] --> D
-        C[Use ORDERS API] --> E{API Mode}
-    end
-
-    E -->|True| F[Real API Integration]
-    E -->|False| G[Simulation Mode]
-
-    F --> F1[Validate secret key format]
-    F1 --> F2[Test API connection]
-    F2 --> F3{Connection OK?}
-    F3 -->|Yes| F4[Enable provider]
-    F3 -->|No| F5[Show error message]
-
-    G --> G1[Use token simulated state]
-    G1 --> G2[Process notification data]
-    G2 --> G3[Update transaction state]
-
-    D --> H[GET /core/v5/customers]
-    H --> I{Response 200?}
-    I -->|Yes| J[Show success notification]
-    I -->|No| K[Show error notification]
+    A[ODOO Transaction Data] --> B[Data Preparation]
+    
+    B --> C[Customer Data:<br/>- name<br/>- email<br/>- phones<br/>- documents (CPF/CNPJ)<br/>- address]
+    
+    B --> D[Order Items:<br/>- code<br/>- description<br/>- amount (centavos)<br/>- quantity<br/>- category]
+    
+    B --> E[Payment Data:<br/>- payment_method<br/>- credit_card token<br/>- installments<br/>- amount]
+    
+    B --> F[Shipping Data:<br/>- address<br/>- recipient_name<br/>- recipient_phone]
+    
+    C --> G[PagarMe Order JSON]
+    D --> G
+    E --> G
+    F --> G
+    
+    G --> H[HTTP POST<br/>api.pagar.me/core/v5/orders<br/>Authorization: Basic base64(secret_key:)]
+    
+    H --> I[PagarMe Response:<br/>- id (order_id)<br/>- status<br/>- charges array<br/>- customer data<br/>- metadata]
+    
+    I --> J[ODOO Transaction Update:<br/>- provider_reference<br/>- state mapping<br/>- status message]
 ```
 
-## Integration Points
+## 5. Error Handling Flow
 
-### 1. Provider Configuration
+```mermaid
+flowchart TD
+    A[API Request] --> B{Response Status}
+    
+    B -->|200/201 Success| C[Process Response Data]
+    B -->|401 Unauthorized| D[Invalid API Key Error]
+    B -->|422 Validation Error| E[Invalid Request Data]
+    B -->|500 Server Error| F[PagarMe System Error]
+    B -->|Network Timeout| G[Connection Timeout]
+    B -->|Connection Error| H[Network Error]
+    
+    C --> I[Extract Order Information<br/>Update Transaction State]
+    
+    D --> J[Log Authentication Error<br/>Display User-Friendly Message]
+    E --> K[Log Validation Details<br/>Show Field Errors]
+    F --> L[Log Server Error<br/>Retry or Fallback]
+    G --> M[Log Timeout Error<br/>Suggest Retry]
+    H --> N[Log Network Error<br/>Check Connectivity]
+    
+    J --> O[Set Transaction to Error State]
+    K --> O
+    L --> O
+    M --> O
+    N --> O
+    
+    I --> P[Transaction Complete]
+    O --> Q[Payment Failed]
+```
 
-- **Fields**: `pagarme_public_key`, `pagarme_secret_key`, `pagarme_use_orders_api`
-- **Validation**: Secret key format validation for test/production modes
-- **Connection Test**: API connectivity verification
+## 6. Configuration Flow
 
-### 2. Transaction Processing
+```mermaid
+flowchart TD
+    A[Administrator Access] --> B[Payment Settings]
+    B --> C[Create PagarMe Provider]
+    
+    C --> D[Configure Credentials:<br/>- Public Key<br/>- Secret Key<br/>- Environment (test/prod)]
+    
+    D --> E[Test Connection]
+    E --> F[action_test_pagarme_connection]
+    F --> G[_test_orders_api_connection]
+    
+    G --> H[Create Test Order Structure]
+    H --> I[Send to PagarMe API]
+    I --> J{Connection Test Result}
+    
+    J -->|Success| K[Enable Provider<br/>Ready for Payments]
+    J -->|Failure| L[Show Error Message<br/>Check Credentials]
+    
+    K --> M[Provider Available<br/>for Customer Payments]
+    L --> N[Fix Configuration<br/>Retry Test]
+    
+    N --> E
+```
 
-- **Method**: `_send_payment_request()` - Entry point for payment processing
-- **API Integration**: `_send_payment_request_to_pagarme_api()` - ORDERS API integration
-- **Data Preparation**: Multiple helper methods for API payload construction
-- **Response Processing**: `_process_pagarme_api_response()` - Handle API responses
+## Key Implementation Features
 
-### 3. Backward Compatibility
+### Real API Integration
+- **Complete ORDERS API**: Full integration with PagarMe's core payment API
+- **Brazilian Compliance**: CPF/CNPJ document handling, BRL currency, installments
+- **Authentication**: Secure Basic authentication with secret key
+- **Error Handling**: Comprehensive API error processing with detailed logging
 
-- **Simulation Mode**: Preserved for existing tests and development
-- **Token Support**: Works with both simulated tokens and real API tokens
-- **Configuration Toggle**: `pagarme_use_orders_api` setting controls behavior
+### ODOO Framework Integration
+- **Provider Model Extension**: Inherits from `payment.provider`
+- **Transaction Model Extension**: Inherits from `payment.transaction`
+- **Token Model Extension**: Inherits from `payment.token`
+- **Controller Integration**: Real webhook endpoint for notifications
 
-### 4. Error Handling
+### Data Flow Architecture
+- **Preparation Layer**: Multiple specialized methods for data formatting
+- **API Communication**: Dedicated HTTP client with proper headers
+- **Response Processing**: Status mapping and error handling
+- **State Management**: Transaction lifecycle management
 
-- **API Errors**: Structured error processing with detailed logging
-- **Network Issues**: Timeout and connection error handling
-- **Data Validation**: Input validation before API calls
-- **User Feedback**: Clear error messages for administrators and users
+### Brazilian Market Features
+- **Document Support**: CPF/CNPJ automatic detection and formatting
+- **Address Format**: Brazilian postal codes and state handling
+- **Payment Methods**: Credit card with installment options (1x to 12x)
+- **Currency**: BRL with centavo conversion (amount * 100)
 
-### 5. Audit Trail
-
-- **Transaction Logs**: Detailed logging of API interactions
-- **Charge Messages**: Posted messages for charge status updates
-- **Reference Tracking**: PagarMe order ID stored as provider reference
-- **Metadata**: Rich metadata for debugging and audit purposes
+This integration provides a production-ready foundation for Brazilian e-commerce payments using PagarMe's robust payment infrastructure.

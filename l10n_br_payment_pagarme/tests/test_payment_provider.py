@@ -86,7 +86,7 @@ class TestPaymentProvider(PaymentPagarmeCommon):
 
         with self.assertRaises(UserError) as cm:
             self.provider.action_test_pagarme_connection()
-        self.assertIn("Connection failed with status 401", str(cm.exception))
+        self.assertIn("ORDERS API connection failed with status 401", str(cm.exception))
 
     @patch("odoo.addons.l10n_br_payment_pagarme.models.payment_provider.requests.get")
     def test_connection_test_timeout(self, mock_get):
@@ -114,7 +114,7 @@ class TestPaymentProvider(PaymentPagarmeCommon):
 
         with self.assertRaises(UserError) as cm:
             self.provider.action_test_pagarme_connection()
-        self.assertIn("Connection error", str(cm.exception))
+        self.assertIn("Connection error:", str(cm.exception))
 
     @patch("odoo.addons.l10n_br_payment_pagarme.models.payment_provider.requests.post")
     def test_orders_api_connection_test_success(self, mock_post):
