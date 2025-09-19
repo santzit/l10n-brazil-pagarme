@@ -458,7 +458,9 @@ class PaymentTransaction(models.Model):
                 if "message" in error_data:
                     error_msg = error_data["message"]
             except (ValueError, KeyError):
-                pass
+                _logger.debug(
+                    "Could not parse JSON error response from PagarMe refund API"
+                )
             raise UserError(
                 _("PagarMe refund failed (%(status)s): %(message)s")
                 % {"status": response.status_code, "message": error_msg}
@@ -557,7 +559,9 @@ class PaymentTransaction(models.Model):
                 if "message" in error_data:
                     error_msg = error_data["message"]
             except (ValueError, KeyError):
-                pass
+                _logger.debug(
+                    "Could not parse JSON error response from PagarMe void API"
+                )
             raise UserError(
                 _("PagarMe void failed (%(status)s): %(message)s")
                 % {"status": response.status_code, "message": error_msg}

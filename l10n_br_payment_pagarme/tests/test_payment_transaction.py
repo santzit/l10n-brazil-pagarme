@@ -24,9 +24,7 @@ class TestPaymentTransaction(PaymentPagarmeCommon, PaymentHttpCommon):
         enabled."""
         self.provider.capture_manually = True
         tx = self._create_transaction("direct")
-        tx._process_notification_data(
-            dict(self.notification_data, status="authorized")
-        )
+        tx._process_notification_data(dict(self.notification_data, status="authorized"))
         self.assertEqual(tx.state, "authorized")
 
     def test_processing_notification_data_confirms_transaction(self):

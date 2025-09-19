@@ -25,7 +25,8 @@ odoo.define("l10n_br_payment_pagarme.payment_form", (require) => {
       }
 
       const customerInput = document.getElementById("customer_input").value;
-      const installments = document.getElementById("installments")?.value || "1";
+      const installmentsElement = document.getElementById("installments");
+      const installments = installmentsElement ? installmentsElement.value : "1";
 
       // Collect enhanced form data with null safety
       let cardHolderName = "";
