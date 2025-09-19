@@ -103,48 +103,8 @@ networks:
 
 **MANDATORY Local OCA Testing Sequence (Rule 1):**
 ```bash
-# Step 1: Create Docker Compose file for OCA testing (follows GitHub Actions pattern)
-cat > docker-compose-oca-test.yml << 'EOF'
-services:
-  postgres:
-    image: postgres:14.0
-    environment:
-      POSTGRES_USER: odoo
-      POSTGRES_PASSWORD: odoo
-      POSTGRES_DB: odoo
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U odoo"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - oca-network
-
-  oca-ci:
-    image: ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest
-    depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - .:/opt/odoo/addons/custom
-    working_dir: /opt/odoo/addons/custom
-    environment:
-      - INCLUDE=l10n_br_payment_pagarme
-      - EXCLUDE=
-      - PGHOST=postgres
-      - PGUSER=odoo
-      - PGPASSWORD=odoo
-      - PGDATABASE=odoo
-      - ADDONS_PATH=/opt/odoo/addons,/opt/odoo/addons/custom
-    networks:
-      - oca-network
-
-networks:
-  oca-network:
-    driver: bridge
-EOF
+# Step 1: Use the permanent docker-compose-oca-test.yml file in root directory
+# IMPORTANT: This file is permanent and should NOT be deleted or recreated
 
 # Step 2: Start PostgreSQL service
 docker compose -f docker-compose-oca-test.yml up -d postgres
@@ -166,9 +126,8 @@ docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "echo '[op
 
 # Expected successful output: "INFO test_db odoo.tests.result: 0 failed, 0 error(s) of X tests when loading database 'test_db'"
 
-# Step 8: Cleanup
+# Step 8: Cleanup (only stop containers, do NOT remove the docker-compose file)
 docker compose -f docker-compose-oca-test.yml down
-rm docker-compose-oca-test.yml
 ```
 
 ### Rule 2: Zero Tolerance for Formatting Violations
@@ -555,53 +514,15 @@ oca_run_tests
 
 #### Verified Test Execution Approach (MANDATORY)
 
-**PROVEN WORKING APPROACH** - Using official OCA testing tools with 19 tests passing:
+**PROVEN WORKING APPROACH** - Using official OCA testing tools with permanent docker-compose-oca-test.yml file:
+
+**IMPORTANT**: The repository contains a permanent `docker-compose-oca-test.yml` file in the root directory that MUST be used for all OCA testing. This file should NOT be deleted or recreated.
 
 ```bash
-# Step 1: Create Docker Compose file for OCA testing
-cat > docker-compose-oca-test.yml << 'EOF'
-services:
-  postgres:
-    image: postgres:14.0
-    environment:
-      POSTGRES_USER: odoo
-      POSTGRES_PASSWORD: odoo
-      POSTGRES_DB: odoo
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U odoo"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - oca-network
+# Step 1: Use the existing docker-compose-oca-test.yml file in root directory
+# This file is permanent and contains the OCA testing configuration
 
-  oca-ci:
-    image: ghcr.io/oca/oca-ci/py3.10-odoo16.0:latest
-    depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - .:/opt/odoo/addons/custom
-    working_dir: /opt/odoo/addons/custom
-    environment:
-      - INCLUDE=l10n_br_payment_pagarme
-      - EXCLUDE=
-      - PGHOST=postgres
-      - PGUSER=odoo
-      - PGPASSWORD=odoo
-      - PGDATABASE=odoo
-      - ADDONS_PATH=/opt/odoo/addons,/opt/odoo/addons/custom
-    networks:
-      - oca-network
-
-networks:
-  oca-network:
-    driver: bridge
-EOF
-
-# Step 2: Start PostgreSQL
+# Step 2: Start PostgreSQL service
 docker compose -f docker-compose-oca-test.yml up -d postgres
 
 # Step 3: Install addons using OCA tools
@@ -622,9 +543,8 @@ docker compose -f docker-compose-oca-test.yml run --rm oca-ci bash -c "echo '[op
 # Expected successful output shows:
 # "INFO test_db odoo.tests.result: 0 failed, 0 error(s) of X tests when loading database 'test_db'"
 
-# Step 8: Cleanup
+# Step 8: Cleanup (only stop containers, do NOT remove the docker-compose file)
 docker compose -f docker-compose-oca-test.yml down
-rm docker-compose-oca-test.yml
 ```
 
 **Test Success Criteria**:

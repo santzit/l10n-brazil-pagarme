@@ -7,10 +7,6 @@
     <field name="arch" type="xml">
       <group name="general_information" position="inside">
         <field name="provider_code" invisible="1" />
-        <field
-          name="pagarme_simulated_state"
-          attrs="{'invisible': [('provider_code', '!=', 'pagarme')], 'required': [('provider_code', '=', 'pagarme')]}"
-        />
       </group>
     </field>
   </record>

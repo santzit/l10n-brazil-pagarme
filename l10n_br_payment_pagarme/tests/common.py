@@ -9,9 +9,12 @@ class PaymentPagarmeCommon(PaymentCommon):
         super().setUpClass()
 
         cls.provider = cls._prepare_provider(code="pagarme")
+        # Configure provider with test secret key for API testing
+        cls.provider.pagarme_secret_key = "sk_test_12345678901234567890"
 
         cls.notification_data = {
             "reference": cls.reference,
             "payment_details": "1234",
-            "simulated_state": "done",
+            "order_id": "order_test_123",
+            "status": "paid",
         }

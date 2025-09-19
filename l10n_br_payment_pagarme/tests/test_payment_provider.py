@@ -86,7 +86,7 @@ class TestPaymentProvider(PaymentPagarmeCommon):
 
         with self.assertRaises(UserError) as cm:
             self.provider.action_test_pagarme_connection()
-        self.assertIn("Connection failed with status 401", str(cm.exception))
+        self.assertIn("ORDERS API connection failed with status 401", str(cm.exception))
 
     @patch("odoo.addons.l10n_br_payment_pagarme.models.payment_provider.requests.get")
     def test_connection_test_timeout(self, mock_get):
@@ -114,4 +114,81 @@ class TestPaymentProvider(PaymentPagarmeCommon):
 
         with self.assertRaises(UserError) as cm:
             self.provider.action_test_pagarme_connection()
-        self.assertIn("Connection error", str(cm.exception))
+        self.assertIn("Connection error:", str(cm.exception))
+
+    @patch("odoo.addons.l10n_br_payment_pagarme.models.payment_provider.requests.post")
+    def test_orders_api_connection_test_success(self, mock_post):
+        """Test successful ORDERS API connection test."""
+        # Mock successful ORDERS API response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.text = '{"id": "order_test_123", "status": "pending"}'
+        mock_post.return_value = mock_response
+
+        self.provider.pagarme_secret_key = "sk_test_valid_key"
+        self.provider.pagarme_secret_key = True
+        result = self.provider.action_test_pagarme_connection()
+
+        # Verify the ORDERS API endpoint is called
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args
+        self.assertIn("/core/v5/orders", call_args[0][0])
+
+        # Check that authorization header uses correct format
+        headers = call_args[1]["headers"]
+        import base64
+
+        expected_auth = base64.b64encode(b"sk_test_valid_key:").decode()
+        self.assertEqual(headers["Authorization"], f"Basic {expected_auth}")
+
+        # Check that the success notification is returned
+        self.assertEqual(result["type"], "ir.actions.client")
+        self.assertEqual(result["tag"], "display_notification")
+        self.assertIn("Successfully connected", result["params"]["message"])
+
+    @patch("odoo.addons.l10n_br_payment_pagarme.models.payment_provider.requests.post")
+    def test_orders_api_connection_test_validation_error(self, mock_post):
+        """Test ORDERS API connection test with validation error (422)."""
+        # Mock validation error response (expected for test without payment method)
+        mock_response = Mock()
+        mock_response.status_code = 422
+        mock_response.text = '{"errors": ["Payment method is required"]}'
+        mock_response.json.return_value = {"errors": ["Payment method is required"]}
+        mock_post.return_value = mock_response
+
+        self.provider.pagarme_secret_key = "sk_test_valid_key"
+        self.provider.pagarme_secret_key = True
+        result = self.provider.action_test_pagarme_connection()
+
+        # Validation error (422) should be treated as successful connection
+        self.assertEqual(result["type"], "ir.actions.client")
+        self.assertEqual(result["tag"], "display_notification")
+        self.assertIn("Successfully connected", result["params"]["message"])
+
+    @patch("odoo.addons.l10n_br_payment_pagarme.models.payment_provider.requests.post")
+    def test_orders_api_connection_test_failure(self, mock_post):
+        """Test failed ORDERS API connection test."""
+        # Mock failed API response
+        mock_response = Mock()
+        mock_response.status_code = 401
+        mock_response.text = "Unauthorized"
+        mock_response.json.return_value = {"message": "Invalid credentials"}
+        mock_post.return_value = mock_response
+
+        self.provider.pagarme_secret_key = "sk_test_invalid_key"
+        self.provider.pagarme_secret_key = True
+
+        with self.assertRaises(UserError) as cm:
+            self.provider.action_test_pagarme_connection()
+        self.assertIn("ORDERS API connection failed with status 401", str(cm.exception))
+
+    def test_orders_api_setting_default(self):
+        """Test that ORDERS API setting defaults to True."""
+        provider = self.env["payment.provider"].create(
+            {
+                "name": "Test PagarMe Provider",
+                "code": "pagarme",
+                "company_id": self.env.company.id,
+            }
+        )
+        self.assertTrue(provider.pagarme_secret_key)

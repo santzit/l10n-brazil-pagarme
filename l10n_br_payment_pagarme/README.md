@@ -20,7 +20,7 @@ method details.
 - `16.0`
   - The module is renamed from `payment_test` to `payment_pagarme`. odoo/odoo#99397
   - The support for manual capture, full and partial refunds, customer fees, and the
-    selection of the payment outcome are added. odoo/odoo#78083
+  selection of the payment outcome are added. odoo/odoo#78083
 
 ## Testing instructions
 
