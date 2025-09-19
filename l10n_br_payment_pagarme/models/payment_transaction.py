@@ -390,17 +390,19 @@ class PaymentTransaction(models.Model):
                 self.reference,
             )
 
-            # Store charge information in metadata or logs for audit trail
-            self.sudo().message_post(
-                body=_(
-                    "PagarMe charge %(charge_id)s: Status %(status)s, "
-                    "Amount %(amount)s %(currency)s"
-                )
-                % {
-                    "charge_id": charge_id,
-                    "status": charge_status,
-                    "amount": amount,
-                    "currency": self.currency_id.name,
+            # Store charge information for audit trail
+            self.write(
+                {
+                    "state_message": _(
+                        "PagarMe charge %(charge_id)s: Status %(status)s, "
+                        "Amount %(amount)s %(currency)s"
+                    )
+                    % {
+                        "charge_id": charge_id,
+                        "status": charge_status,
+                        "amount": amount,
+                        "currency": self.currency_id.name,
+                    }
                 }
             )
 
@@ -414,7 +416,7 @@ class PaymentTransaction(models.Model):
             raise UserError(_("Cannot refund: No PagarMe order reference found."))
 
         url = f"https://api.pagar.me/core/v5/orders/{self.provider_reference}/refunds"
-        
+
         # Prepare authentication header
         auth_string = f"{self.provider_id.pagarme_secret_key}:"
         encoded_auth = base64.b64encode(auth_string.encode()).decode()
@@ -446,7 +448,9 @@ class PaymentTransaction(models.Model):
 
         if response.status_code == 200:
             refund_tx._set_done()
-            _logger.info("PagarMe refund successful for transaction %s", refund_tx.reference)
+            _logger.info(
+                "PagarMe refund successful for transaction %s", refund_tx.reference
+            )
         else:
             error_msg = response.text
             try:
@@ -469,7 +473,7 @@ class PaymentTransaction(models.Model):
             raise UserError(_("Cannot capture: No PagarMe order reference found."))
 
         url = f"https://api.pagar.me/core/v5/orders/{self.provider_reference}/charges"
-        
+
         # Prepare authentication header
         auth_string = f"{self.provider_id.pagarme_secret_key}:"
         encoded_auth = base64.b64encode(auth_string.encode()).decode()
@@ -482,24 +486,29 @@ class PaymentTransaction(models.Model):
 
         # Get charges for the order to capture them
         response = requests.get(url, headers=headers, timeout=30)
-        
+
         if response.status_code == 200:
             charges = response.json().get("data", [])
             for charge in charges:
                 if charge.get("status") == "pending":
                     charge_id = charge.get("id")
-                    capture_url = f"https://api.pagar.me/core/v5/charges/{charge_id}/capture"
-                    
-                    capture_response = requests.post(
-                        capture_url, 
-                        data=json.dumps({"amount": charge.get("amount")}), 
-                        headers=headers, 
-                        timeout=30
+                    capture_url = (
+                        f"https://api.pagar.me/core/v5/charges/{charge_id}/capture"
                     )
-                    
+
+                    capture_response = requests.post(
+                        capture_url,
+                        data=json.dumps({"amount": charge.get("amount")}),
+                        headers=headers,
+                        timeout=30,
+                    )
+
                     if capture_response.status_code == 200:
                         self._set_done()
-                        _logger.info("PagarMe capture successful for transaction %s", self.reference)
+                        _logger.info(
+                            "PagarMe capture successful for transaction %s",
+                            self.reference,
+                        )
                     else:
                         raise UserError(_("PagarMe capture failed"))
         else:
@@ -514,7 +523,7 @@ class PaymentTransaction(models.Model):
             raise UserError(_("Cannot void: No PagarMe order reference found."))
 
         url = f"https://api.pagar.me/core/v5/orders/{self.provider_reference}"
-        
+
         # Prepare authentication header
         auth_string = f"{self.provider_id.pagarme_secret_key}:"
         encoded_auth = base64.b64encode(auth_string.encode()).decode()
@@ -637,7 +646,7 @@ class PaymentTransaction(models.Model):
 
         # Process the webhook status to determine transaction state
         status = notification_data.get("status", "").lower()
-        
+
         if status == "pending":
             self._set_pending()
         elif status in ["paid", "authorized"]:
@@ -681,9 +690,11 @@ class PaymentTransaction(models.Model):
         self.ensure_one()
 
         # Extract payment details from webhook
-        payment_details = notification_data.get("payment_details", "Card ending in ****")
+        payment_details = notification_data.get(
+            "payment_details", "Card ending in ****"
+        )
         card_id = notification_data.get("card_id")
-        
+
         token = self.env["payment.token"].create(
             {
                 "provider_id": self.provider_id.id,

@@ -4,7 +4,6 @@ from unittest.mock import Mock, patch
 
 from odoo.exceptions import UserError
 from odoo.tests import tagged
-from odoo.tools import mute_logger
 
 from odoo.addons.l10n_br_payment_pagarme.tests.common import PaymentPagarmeCommon
 from odoo.addons.payment.tests.http_common import PaymentHttpCommon
@@ -16,9 +15,7 @@ class TestPaymentTransaction(PaymentPagarmeCommon, PaymentHttpCommon):
         """Test that the transaction state is set to 'pending' when the
         notification data indicate a pending payment."""
         tx = self._create_transaction("direct")
-        tx._process_notification_data(
-            dict(self.notification_data, status="pending")
-        )
+        tx._process_notification_data(dict(self.notification_data, status="pending"))
         self.assertEqual(tx.state, "pending")
 
     def test_processing_notification_data_authorizes_transaction(self):
@@ -27,7 +24,9 @@ class TestPaymentTransaction(PaymentPagarmeCommon, PaymentHttpCommon):
         enabled."""
         self.provider.capture_manually = True
         tx = self._create_transaction("direct")
-        tx._process_notification_data(self.notification_data)
+        tx._process_notification_data(
+            dict(self.notification_data, status="authorized")
+        )
         self.assertEqual(tx.state, "authorized")
 
     def test_processing_notification_data_confirms_transaction(self):
@@ -41,9 +40,7 @@ class TestPaymentTransaction(PaymentPagarmeCommon, PaymentHttpCommon):
         """Test that the transaction state is set to 'cancel' when the notification
         data indicate an unsuccessful payment."""
         tx = self._create_transaction("direct")
-        tx._process_notification_data(
-            dict(self.notification_data, status="canceled")
-        )
+        tx._process_notification_data(dict(self.notification_data, status="canceled"))
         self.assertEqual(tx.state, "cancel")
 
     def test_processing_notification_data_sets_transaction_in_error(self):

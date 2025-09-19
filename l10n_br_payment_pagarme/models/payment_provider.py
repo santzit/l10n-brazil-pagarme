@@ -197,7 +197,7 @@ class PaymentProvider(models.Model):
         )
 
         # Note: This is a dry-run test without payment methods
-        # We expect this to fail with a validation error, which confirms API connectivity
+        # We expect this to fail with validation error, confirming API connectivity
         response = requests.post(
             url, data=json.dumps(test_order_data), headers=headers, timeout=10
         )
@@ -231,5 +231,6 @@ class PaymentProvider(models.Model):
             _logger.info("ORDERS API test successful - order structure accepted")
         else:  # 422
             _logger.info(
-                "ORDERS API test successful - API reachable (validation error expected without payment method)"
+                "ORDERS API test successful - API reachable "
+                "(validation error expected without payment method)"
             )

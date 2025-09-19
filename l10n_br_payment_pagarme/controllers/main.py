@@ -19,7 +19,7 @@ class PaymentPagarmeController(http.Controller):
         :return: Empty response to acknowledge receipt
         """
         _logger.info("PagarMe webhook received: %s", data)
-        
+
         try:
             # Process the webhook data
             request.env["payment.transaction"].sudo()._handle_notification_data(
